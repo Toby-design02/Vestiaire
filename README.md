@@ -51,3 +51,10 @@ Vestiaire/
 ```
 
 Le contrat avec le pipeline IA est décrit dans [docs/modele-de-donnees.md](docs/modele-de-donnees.md).
+
+## Sauvegarde sur GitHub
+
+Le projet est sur GitHub (dépôt privé `Toby-design02/Vestiaire`). Chaque lundi à 10 h, une tâche programmée de l'app Claude lance `tools/sauvegarde-github.sh`, qui enregistre les modifications et les envoie sur GitHub. Si l'app Claude est fermée à ce moment-là, la sauvegarde se fait à sa prochaine ouverture.
+
+- Sauvegarder tout de suite : `zsh tools/sauvegarde-github.sh`
+- Modifier ou arrêter la sauvegarde automatique : dans l'app Claude, section des tâches programmées.
