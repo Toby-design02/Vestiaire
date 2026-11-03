@@ -10,6 +10,7 @@ struct ItemDetailView: View {
     @State private var isEditingBrand = false
     @State private var isMerging = false
     @State private var isRemoving = false
+    @State private var isClassifying = false
     @State private var openSection: String? = "Détails"
 
     var body: some View {
@@ -25,18 +26,22 @@ struct ItemDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 gallery(item)
+                if item.status == .archived {
+                    archivedBanner(item)
+                }
                 titleBlock(item)
                     .padding(.top, 24)
                 statsRow(item)
                     .padding(.top, 28)
                 VStack(spacing: 0) {
                     accordion("Détails") { details(item) }
+                    accordion("Saisons, occasions et étiquettes") { attributes(item) }
                     accordion("Prix et revente") { prices(item) }
                     accordion("Vendre ou échanger") { resale(item) }
                     accordion("Photos sources") { sources(item) }
                 }
                 .padding(.top, 28)
-                actions
+                actions(item)
                     .padding(.top, 32)
             }
             .padding(.bottom, 48)
@@ -48,6 +53,19 @@ struct ItemDetailView: View {
         }
         .sheet(isPresented: $isMerging) {
             MergePicker(item: item)
+        }
+        .sheet(isPresented: $isClassifying) {
+            ItemAttributesEditor(item: item)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    store.toggleFavorite(item)
+                } label: {
+                    Image(systemName: item.isFavorite ? "heart.fill" : "heart")
+                }
+                .accessibilityLabel(item.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")
+            }
         }
         .confirmationDialog("Cette pièce sort de ton vestiaire", isPresented: $isRemoving, titleVisibility: .visible) {
             Button("Je l'ai vendue") {
@@ -233,17 +251,72 @@ struct ItemDetailView: View {
         }
     }
 
-    private var actions: some View {
+    private func archivedBanner(_ item: Item) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "archivebox")
+                .font(.system(size: 16, weight: .light))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("PIÈCE ARCHIVÉE")
+                    .font(Theme.label)
+                    .tracking(1.5)
+                Text("Hors du dressing actif et des tenues proposées. Son historique est conservé.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.muted)
+            }
+            Spacer()
+            Button("Restaurer") { store.setStatus(.active, for: item) }
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundStyle(Theme.ink)
+        .padding(16)
+        .overlay(Rectangle().stroke(Theme.line, lineWidth: 1))
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+    }
+
+    private func attributes(_ item: Item) -> some View {
+        let tagNames = item.tagIDs.compactMap { store.tag(id: $0)?.name }.sorted()
+        return VStack(alignment: .leading, spacing: 0) {
+            DetailRow(label: "Favori", value: item.isFavorite ? "Oui" : "Non")
+            DetailRow(label: "Saisons", value: item.seasons.isEmpty ? "À renseigner" : Season.allCases.filter(item.seasons.contains).map(\.label).joined(separator: ", "))
+            DetailRow(label: "Occasions", value: item.occasions.isEmpty ? "À renseigner" : Occasion.allCases.filter(item.occasions.contains).map(\.label).joined(separator: ", "))
+            DetailRow(label: "Étiquettes", value: tagNames.isEmpty ? "Aucune" : tagNames.joined(separator: ", "))
+            Button("Modifier") { isClassifying = true }
+                .font(.system(size: 13, weight: .semibold))
+                .underline()
+                .foregroundStyle(Theme.ink)
+                .padding(.top, 12)
+        }
+    }
+
+    private func actions(_ item: Item) -> some View {
         VStack(spacing: 10) {
             Button("Modifier la marque") { isEditingBrand = true }
                 .buttonStyle(PrimaryButtonStyle())
             Button("Fusionner un doublon") { isMerging = true }
                 .buttonStyle(SecondaryButtonStyle())
-            Button("Je ne l'ai plus") { isRemoving = true }
-                .font(.system(size: 13))
-                .underline()
-                .foregroundStyle(Theme.muted)
-                .padding(.top, 8)
+            if item.status == .archived {
+                Button("Restaurer dans le dressing") { store.setStatus(.active, for: item) }
+                    .buttonStyle(SecondaryButtonStyle())
+            } else if item.status == .active {
+                Button("Archiver") { store.setStatus(.archived, for: item) }
+                    .buttonStyle(SecondaryButtonStyle())
+                Text("Archiver la range de côté : elle n'est plus proposée dans les tenues, mais son historique reste.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.center)
+            }
+            if item.status == .active || item.status == .archived {
+                Button("Je ne l'ai plus") { isRemoving = true }
+                    .font(.system(size: 13))
+                    .underline()
+                    .foregroundStyle(Theme.muted)
+                    .padding(.top, 8)
+            } else {
+                Text(item.status == .sold ? "Vendue : elle n'est plus dans ton vestiaire." : "Donnée : elle n'est plus dans ton vestiaire.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.muted)
+            }
         }
         .padding(.horizontal, 20)
     }

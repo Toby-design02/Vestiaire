@@ -21,6 +21,20 @@ extension Date {
         formatted(.dateTime.month(.wide).locale(french))
     }
 
+    var monthYearFR: String {
+        formatted(.dateTime.month(.wide).year().locale(french))
+    }
+
+    /// « mardi 4 novembre »
+    var dayFR: String {
+        formatted(.dateTime.weekday(.wide).day().month(.wide).locale(french))
+    }
+
+    /// « 4 nov. »
+    var dayMonthFR: String {
+        formatted(.dateTime.day().month(.abbreviated).locale(french))
+    }
+
     var timeFR: String {
         formatted(.dateTime.hour().minute().locale(french))
     }
@@ -32,6 +46,28 @@ extension Date {
         formatter.unitsStyle = .full
         return formatter.localizedString(for: self, relativeTo: now)
     }
+}
+
+extension Calendar {
+    /// Calendrier français : les semaines commencent le lundi.
+    static var french: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "fr_FR")
+        calendar.firstWeekday = 2
+        return calendar
+    }
+}
+
+/// « du 10 au 12 nov. », ou « 4 nov. » sur un seul jour.
+func dateRangeLabel(_ start: Date, _ end: Date) -> String {
+    if Calendar.current.isDate(start, inSameDayAs: end) {
+        return start.dayMonthFR
+    }
+    return "du \(start.dayMonthFR) au \(end.dayMonthFR)"
+}
+
+func outfitsLabel(_ count: Int) -> String {
+    count == 1 ? "1 tenue" : "\(count) tenues"
 }
 
 func portsLabel(_ count: Int) -> String {

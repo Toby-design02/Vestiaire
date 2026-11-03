@@ -14,12 +14,18 @@ struct WrappedView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
                     header
-                    if stats.photographedDays == 0 {
-                        Text("Pas encore assez de photos sur cette période.")
+                    if stats.loggedDays == 0 {
+                        Text("Pas encore de tenue portée enregistrée sur cette période. Ajoute tes tenues dans Vestiaire → Mes outfits → Journal.")
                             .font(.subheadline)
                             .foregroundStyle(Theme.muted)
                             .padding(.horizontal, 16)
                     } else {
+                        if stats.includesSampleData {
+                            Text("Calculé à partir de ton journal de tenues portées, qui contient des données d'exemple du prototype.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.muted)
+                                .padding(.horizontal, 16)
+                        }
                         hero(stats)
                         keyFigures(stats)
                         cards(stats)
@@ -102,7 +108,7 @@ struct WrappedView: View {
         let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
         return LazyVGrid(columns: columns, spacing: 8) {
             StatTile(value: "\(stats.itemCount)", label: "Pièces")
-            StatTile(value: "\(stats.photographedDays)", label: "Jours en photo")
+            StatTile(value: "\(stats.loggedDays)", label: "Jours enregistrés")
             StatTile(value: stats.wornShare.percent, label: "Du dressing porté")
             StatTile(value: "\(stats.dormantCount)", label: "Pièces dormantes")
         }

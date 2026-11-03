@@ -2,7 +2,7 @@ import PhotosUI
 import SwiftUI
 
 /// En cabine d'essayage : « est-ce que je devrais acheter ce pantalon bleu ? »
-/// L'app compare la pièce avec le dressing avant l'achat.
+/// L'app compare la pièce avec le dressing avant l'achat, et peut la garder dans « Mes envies ».
 struct FittingRoomView: View {
     @Environment(WardrobeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -12,6 +12,7 @@ struct FittingRoomView: View {
     @State private var description = ""
     @State private var checked: Item?
     @State private var tryOnOutfit: GeneratedOutfit?
+    @State private var addedWishID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -61,6 +62,7 @@ struct FittingRoomView: View {
                     Button("Vérifier mon dressing") {
                         withAnimation(.snappy) {
                             checked = TryOnPiece(description: description).item
+                            addedWishID = nil
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle())
@@ -126,9 +128,31 @@ struct FittingRoomView: View {
                     .font(.system(size: 14))
                 similarRow(item)
             }
+            wishButton
         }
         .padding(18)
         .overlay(Rectangle().stroke(Theme.line, lineWidth: 1))
+    }
+
+    /// Garder la pièce dans « Mes envies », reliée aux pièces semblables déjà possédées.
+    @ViewBuilder
+    private var wishButton: some View {
+        if let id = addedWishID, let wish = store.wish(id: id) {
+            Label(
+                wish.similarItemIDs.isEmpty
+                    ? "Ajoutée à tes envies."
+                    : "Ajoutée à tes envies, reliée à \(wish.similarItemIDs.count == 1 ? "1 pièce semblable" : "\(wish.similarItemIDs.count) pièces semblables") de ton dressing.",
+                systemImage: "checkmark"
+            )
+            .font(.system(size: 13))
+            .foregroundStyle(Theme.positive)
+        } else {
+            Button("Ajouter à mes envies") {
+                let wish = store.addWish(Wish(description: description.trimmingCharacters(in: .whitespacesAndNewlines), photo: photoData, source: .fittingRoom))
+                addedWishID = wish.id
+            }
+            .buttonStyle(SecondaryButtonStyle())
+        }
     }
 
     private func verdictTitle(_ text: String, color: Color) -> some View {

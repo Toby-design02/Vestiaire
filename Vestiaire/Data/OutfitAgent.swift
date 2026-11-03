@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// L'agent de tenues et la cabine d'essayage.
-/// Pour l'instant ce sont des règles simples ; plus tard, le pipeline IA prendra le relais
-/// (choix des pièces et image générée de la tenue).
+/// Pour l'instant ce sont des règles simples sur les pièces actives (les pièces archivées en sont exclues) ;
+/// plus tard, le pipeline IA prendra le relais (choix des pièces et image générée de la tenue).
+/// La météo est un exemple fixe : aucun service météo n'est branché.
 extension WardrobeStore {
     static let weatherToday = (label: "Paris · 11 °C, couvert", temperature: 11)
 
@@ -96,14 +97,18 @@ extension WardrobeStore {
         case dormantDuplicate(Item, lastWorn: Date?)
     }
 
-    func verdict(for piece: Item) -> PurchaseVerdict {
-        let similar = activeItems
-            .filter { $0.category == piece.category }
+    /// Les pièces actives du même rayon et d'une couleur proche, de la plus proche à la moins proche.
+    func similarItems(to piece: Item) -> [Item] {
+        activeItems
+            .filter { $0.category == piece.category && $0.id != piece.id }
             .map { (item: $0, distance: Self.colorDistance($0.colorHex, piece.colorHex)) }
             .filter { $0.distance < 0.25 }
-            .min { $0.distance < $1.distance }?.item
+            .sorted { $0.distance < $1.distance }
+            .map(\.item)
+    }
 
-        if let similar {
+    func verdict(for piece: Item) -> PurchaseVerdict {
+        if let similar = similarItems(to: piece).first {
             if isDormant(similar) {
                 return .dormantDuplicate(similar, lastWorn: lastWorn(similar))
             }

@@ -32,11 +32,15 @@ enum StatsPeriod: String, CaseIterable, Identifiable {
     }
 }
 
-/// Récap du Wrapped pour une période.
+/// Récap d'une période, calculé à partir du journal des tenues portées.
+/// Sert au Wrapped et au tableau de bord des statistiques.
 struct WardrobeStats {
     let period: StatsPeriod
     let itemCount: Int
-    let photographedDays: Int
+    /// Jours avec au moins une tenue portée enregistrée.
+    let loggedDays: Int
+    /// Tenues portées enregistrées sur la période.
+    let loggedOutfits: Int
     let favorite: (item: Item, wears: Int)?
     let topColor: (name: String, hex: String)?
     let bestValue: (item: Item, costPerWear: Double)?
@@ -45,4 +49,12 @@ struct WardrobeStats {
     let wornShare: Double
     /// Les pièces les plus portées, de la plus portée à la moins portée.
     var topItems: [(item: Item, wears: Int)] = []
+    /// Les pièces actives portées au plus une fois sur la période, de la moins portée à la plus portée.
+    var rarelyWorn: [(item: Item, wears: Int)] = []
+    /// Les couleurs portées, de la plus portée à la moins portée (en jours de port).
+    var colors: [(name: String, hex: String, wears: Int)] = []
+    /// Coût par port de chaque pièce active qui a un prix et au moins un port, du moins cher au plus cher.
+    var costPerWear: [(item: Item, costPerWear: Double)] = []
+    /// Une partie des tenues de la période sont des données d'exemple.
+    var includesSampleData = false
 }

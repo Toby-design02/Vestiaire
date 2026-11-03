@@ -55,15 +55,20 @@ struct ProfileView: View {
                 }
 
                 Section("Confidentialité") {
+                    Label("Ton journal de tenues portées est privé, jamais publié", systemImage: "lock")
                     Label("Tes photos ne quittent pas ton iPhone", systemImage: "iphone")
                     Label("Aucune donnée faciale sur nos serveurs", systemImage: "faceid")
                     Label("Documents et captures exclus automatiquement", systemImage: "eye.slash")
                 }
 
-                Section("Prototype") {
+                Section {
                     Button("Revoir l'onboarding") {
                         hasCompletedOnboarding = false
                     }
+                } header: {
+                    Text("Prototype")
+                } footer: {
+                    Text("Les données sont des exemples, recréées à chaque lancement. Tes ajouts (journal, agenda, envies, étiquettes) restent en mémoire tant que l'app est ouverte : ils ne sont pas encore sauvegardés.")
                 }
             }
             .scrollContentBackground(.hidden)

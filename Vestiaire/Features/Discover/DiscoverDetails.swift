@@ -218,7 +218,7 @@ struct ListingView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(seller.author.name)
                                     .font(.system(size: 14, weight: .semibold))
-                                Text("Portée dans ses OOTD")
+                                Text("Dans son vestiaire")
                                     .font(.system(size: 12))
                                     .foregroundStyle(Theme.muted)
                             }

@@ -1,9 +1,51 @@
 import PhotosUI
 import SwiftUI
 
-/// « Mes outfits » : l'agent qui compose une tenue à partir de mon dressing,
-/// puis l'historique de toutes les tenues qu'il m'a proposées.
+/// Les trois parties de « Mes outfits ».
+enum OutfitsTab: String, CaseIterable, Identifiable {
+    case outfits, journal, agenda
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .outfits: "Tenues"
+        case .journal: "Journal"
+        case .agenda: "Agenda"
+        }
+    }
+}
+
+/// « Mes outfits » : les tenues proposées par l'agent (Tenues), les tenues réellement portées (Journal)
+/// et les tenues programmées (Agenda).
 struct MyOutfitsSection: View {
+    let onOpen: (GeneratedOutfit) -> Void
+    @State private var tab: OutfitsTab = .outfits
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(spacing: 26) {
+                ForEach(OutfitsTab.allCases) { option in
+                    Chip(title: option.label, isSelected: tab == option) {
+                        withAnimation(.snappy) { tab = option }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            switch tab {
+            case .outfits: ProposedOutfitsView(onOpen: onOpen)
+            case .journal: JournalView()
+            case .agenda: AgendaView()
+            }
+        }
+    }
+}
+
+/// Les tenues proposées : l'agent qui compose une tenue à partir du dressing,
+/// puis l'historique de toutes les tenues qu'il a proposées.
+/// Une tenue proposée n'est jamais comptée comme portée sans confirmation.
+struct ProposedOutfitsView: View {
     @Environment(WardrobeStore.self) private var store
     let onOpen: (GeneratedOutfit) -> Void
 
@@ -197,18 +239,31 @@ struct MyOutfitsSection: View {
     // MARK: - Historique
 
     private var history: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                SectionLabel("Historique")
-                Spacer()
-                Text("\(store.generatedOutfits.count) tenues proposées")
+        let outfits = store.visibleGeneratedOutfits
+        return VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    SectionLabel("Tenues proposées")
+                    Spacer()
+                    Text(outfits.count == 1 ? "1 tenue" : "\(outfits.count) tenues")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.muted)
+                }
+                Text("Proposées par l'agent, pas forcément portées. Ouvre une tenue pour la marquer comme portée ou la planifier.")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.muted)
             }
             .padding(.horizontal, 16)
 
+            if outfits.isEmpty {
+                Text("Aucune tenue proposée pour l'instant : compose ta première tenue ci-dessus.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 16)
+            }
+
             LazyVGrid(columns: columns, spacing: 28) {
-                ForEach(store.generatedOutfits) { outfit in
+                ForEach(outfits) { outfit in
                     Button {
                         onOpen(outfit)
                     } label: {
@@ -227,6 +282,10 @@ struct MyOutfitsSection: View {
                                         .font(.system(size: 13))
                                         .foregroundStyle(Theme.accent)
                                 }
+                                let worn = store.timesWorn(outfit)
+                                Text(worn == 0 ? "Pas encore portée" : "Portée \(worn) fois")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(worn == 0 ? Theme.muted : Theme.positive)
                             }
                             .lineLimit(1)
                             .padding(.horizontal, 12)
@@ -278,8 +337,12 @@ struct GeneratedOutfitView: View {
     @Environment(WardrobeStore.self) private var store
     let outfit: GeneratedOutfit
 
+    @State private var isMarkingWorn = false
+    @State private var isPlanning = false
+
     var body: some View {
         let pieces = outfit.itemIDs.compactMap { store.item(id: $0) }
+        let current = store.generatedOutfit(id: outfit.id) ?? outfit
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 GeneratedOutfitImage(outfit: outfit)
@@ -300,6 +363,9 @@ struct GeneratedOutfitView: View {
                     }
                 }
                 .padding(.horizontal, 20)
+
+                actions(current, pieces: pieces)
+                    .padding(.horizontal, 20)
 
                 VStack(alignment: .leading, spacing: 0) {
                     SectionLabel("Pourquoi cette tenue")
@@ -335,6 +401,50 @@ struct GeneratedOutfitView: View {
         }
         .background(Theme.paper)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isMarkingWorn) {
+            JournalEntryEditor(
+                context: SessionContext(outfit.occasion),
+                itemIDs: pieces.filter { $0.status == .active }.map(\.id),
+                outfitID: outfit.id,
+                note: outfit.tryOn.map { "La pièce essayée (\($0.description)) n'est pas dans ton dressing : elle n'est pas comptée." }
+            )
+        }
+        .sheet(isPresented: $isPlanning) {
+            PlanEditor(date: Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now, outfit: outfit)
+        }
+    }
+
+    /// Une tenue proposée reste une proposition : elle ne devient portée qu'après confirmation.
+    private func actions(_ outfit: GeneratedOutfit, pieces: [Item]) -> some View {
+        let worn = store.sessions.filter { $0.outfitID == outfit.id }
+        let planned = store.plans.filter { $0.outfitID == outfit.id && $0.date >= Calendar.current.startOfDay(for: .now) }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text(worn.isEmpty ? "Tenue proposée · pas encore portée" : "Portée \(worn.count) fois · dernière fois le \(worn.map(\.date).max()?.shortFR ?? "")")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(worn.isEmpty ? Theme.muted : Theme.positive)
+            if let next = planned.map(\.date).min() {
+                Text("Planifiée le \(next.dayFR)")
+                    .font(.system(size: 13))
+            }
+            if outfit.isArchived {
+                Text("Cette tenue est archivée.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.accent)
+            }
+            Button("Marquer comme portée") { isMarkingWorn = true }
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(pieces.allSatisfy { $0.status != .active })
+            Button("Planifier") { isPlanning = true }
+                .buttonStyle(SecondaryButtonStyle())
+            Button(outfit.isArchived ? "Restaurer cette tenue" : "Archiver cette tenue") {
+                store.setArchived(!outfit.isArchived, for: outfit)
+            }
+            .font(.system(size: 13))
+            .underline()
+            .foregroundStyle(Theme.muted)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 4)
+        }
     }
 
     private func pieceRow(_ piece: Item, note: String) -> some View {

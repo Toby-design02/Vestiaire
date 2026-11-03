@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Une tenue posée à plat sur un sol (parquet, béton, drap…), comme la photo
-/// que le pipeline IA générera à partir de l'OOTD.
+/// que le pipeline IA générera à partir d'une tenue.
 struct OutfitFlatLay: View {
     let pieces: [Item]
     let backdropHex: String
@@ -77,6 +77,6 @@ struct OutfitFlatLay: View {
 
 #Preview {
     let store = WardrobeStore.sample()
-    return OutfitFlatLay(pieces: store.feed[4].pieces, backdropHex: store.feed[4].backdropHex)
+    return OutfitFlatLay(pieces: store.trending[1].pieces, backdropHex: store.trending[1].backdropHex)
         .padding()
 }

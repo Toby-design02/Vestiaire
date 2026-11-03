@@ -21,15 +21,24 @@ enum WardrobeMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Les écrans qu'on ouvre depuis le Vestiaire.
+enum WardrobeRoute: Hashable {
+    case archives, wishlist, stats
+    case wish(UUID)
+    case event(UUID)
+    case packing(UUID)
+}
+
 /// Accueil : la garde-robe présentée comme une boutique en ligne,
-/// et l'agent qui compose des tenues avec.
+/// et « Mes outfits » (tenues proposées, journal des tenues portées, agenda).
 struct WardrobeView: View {
     @Environment(WardrobeStore.self) private var store
     @State private var mode: WardrobeMode = .dressing
-    @State private var category: ClothingCategory?
+    @State private var filter = WardrobeFilter()
     @State private var sort: WardrobeSort = .mostWorn
     @State private var path = NavigationPath()
     @State private var isInFittingRoom = false
+    @State private var isFiltering = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 2),
@@ -37,10 +46,7 @@ struct WardrobeView: View {
     ]
 
     private var visibleItems: [Item] {
-        var list = store.activeItems
-        if let category {
-            list = list.filter { $0.category == category }
-        }
+        let list = store.activeItems.filter(filter.matches)
         switch sort {
         case .mostWorn:
             return list.sorted { store.wearCount(of: $0) > store.wearCount(of: $1) }
@@ -78,15 +84,29 @@ struct WardrobeView: View {
             .navigationDestination(for: GeneratedOutfit.self) { outfit in
                 GeneratedOutfitView(outfit: outfit)
             }
+            .navigationDestination(for: WardrobeRoute.self) { route in
+                switch route {
+                case .archives: ArchivesView()
+                case .wishlist: WishlistView()
+                case .stats: StatsDashboardView()
+                case .wish(let id): WishDetailView(wishID: id)
+                case .event(let id): EventDetailView(eventID: id)
+                case .packing(let id): PackingListView(eventID: id)
+                }
+            }
             .sheet(isPresented: $isInFittingRoom) {
                 FittingRoomView()
+            }
+            .sheet(isPresented: $isFiltering) {
+                FilterSheet(filter: $filter)
             }
         }
     }
 
     @ViewBuilder
     private func dressing(_ items: [Item]) -> some View {
-        if category == nil {
+        tools
+        if filter.isEmpty {
             fittingRoomEntry
             highlight
         }
@@ -101,12 +121,48 @@ struct WardrobeView: View {
         }
 
         if items.isEmpty {
-            Text("Aucune pièce ici pour l'instant.")
-                .font(.subheadline)
-                .foregroundStyle(Theme.muted)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 40)
+            VStack(spacing: 12) {
+                Text(filter.isEmpty ? "Aucune pièce ici pour l'instant." : "Aucune pièce ne correspond à ces filtres.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.muted)
+                if !filter.isEmpty {
+                    Button("Effacer les filtres") { filter = WardrobeFilter() }
+                        .font(.system(size: 13))
+                        .underline()
+                        .foregroundStyle(Theme.ink)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 40)
         }
+    }
+
+    /// Les outils du dressing : filtres, envies, archives, statistiques.
+    private var tools: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button {
+                    isFiltering = true
+                } label: {
+                    ToolLabel(title: filter.activeCount > 0 ? "Filtres · \(filter.activeCount)" : "Filtres", systemImage: "slider.horizontal.3")
+                }
+                .buttonStyle(.plain)
+                NavigationLink(value: WardrobeRoute.wishlist) {
+                    ToolLabel(title: "Mes envies · \(store.consideredWishes.count)", systemImage: "bookmark")
+                }
+                .buttonStyle(.plain)
+                NavigationLink(value: WardrobeRoute.stats) {
+                    ToolLabel(title: "Statistiques", systemImage: "chart.bar")
+                }
+                .buttonStyle(.plain)
+                NavigationLink(value: WardrobeRoute.archives) {
+                    ToolLabel(title: "Archives · \(store.archivedItems.count)", systemImage: "archivebox")
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.bottom, 20)
     }
 
     /// « En cabine ? » : vérifier une pièce avant de l'acheter.
@@ -144,7 +200,7 @@ struct WardrobeView: View {
                 Text("VESTIAIRE")
                     .font(.system(size: 15, weight: .semibold))
                     .tracking(6)
-                Text("\(store.activeItems.count) pièces · \(store.photographedDays()) jours photographiés")
+                Text("\(store.activeItems.count) pièces · \(store.loggedDays()) jours de tenues enregistrés")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.muted)
             }
@@ -201,9 +257,9 @@ struct WardrobeView: View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 22) {
-                    Chip(title: "Tout", isSelected: category == nil) { category = nil }
+                    Chip(title: "Tout", isSelected: filter.categories.isEmpty) { filter.categories = [] }
                     ForEach(ClothingCategory.allCases) { option in
-                        Chip(title: option.label, isSelected: category == option) { category = option }
+                        Chip(title: option.label, isSelected: filter.categories.contains(option)) { filter.categories = [option] }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -215,6 +271,12 @@ struct WardrobeView: View {
             HStack {
                 Text(count == 1 ? "1 article" : "\(count) articles")
                     .foregroundStyle(Theme.muted)
+                if !filter.isEmpty {
+                    Button("Effacer les filtres") { filter = WardrobeFilter() }
+                        .underline()
+                        .foregroundStyle(Theme.ink)
+                        .padding(.leading, 8)
+                }
                 Spacer()
                 Menu {
                     Picker("Trier", selection: $sort) {
@@ -245,6 +307,15 @@ struct ItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ProductImage(item: item)
+                .overlay(alignment: .topTrailing) {
+                    if item.isFavorite {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.ink)
+                            .padding(10)
+                            .accessibilityLabel("Favori")
+                    }
+                }
                 .padding(.bottom, 8)
             Group {
                 Text(item.brand?.name.uppercased() ?? "MARQUE À COMPLÉTER")

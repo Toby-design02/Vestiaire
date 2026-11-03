@@ -244,18 +244,40 @@ struct DiscoverView: View {
                         }
                     }
                     Button("L'essayer dans une tenue") {
-                        let item = recommendation.item
                         var request = OutfitRequest()
-                        request.tryOn = TryOnPiece(description: "\(item.type.lowercased()) \(item.brand?.name ?? "") \(item.colors.first?.lowercased() ?? "")")
+                        request.tryOn = TryOnPiece(description: wishDescription(recommendation))
                         let outfit = store.generateOutfit(request)
                         store.saveGenerated(outfit)
                         tryOnOutfit = outfit
                     }
                     .buttonStyle(SecondaryButtonStyle())
+                    if store.wishes.contains(where: { $0.description.lowercased() == wishDescription(recommendation).lowercased() }) {
+                        Label("Dans tes envies", systemImage: "checkmark")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.positive)
+                    } else {
+                        Button("Ajouter à mes envies") {
+                            store.addWish(Wish(
+                                description: wishDescription(recommendation),
+                                brand: recommendation.item.brand?.name,
+                                estimatedPrice: recommendation.price,
+                                source: .discover
+                            ))
+                        }
+                        .font(.system(size: 13))
+                        .underline()
+                        .foregroundStyle(Theme.ink)
+                    }
                 }
                 .padding(.horizontal, 16)
             }
         }
+    }
+
+    /// « casquette Jacquemus beige » : la description lisible par la cabine et la liste d'envies.
+    private func wishDescription(_ recommendation: Recommendation) -> String {
+        let item = recommendation.item
+        return [item.type.lowercased(), item.brand?.name, item.colors.first?.lowercased()].compactMap { $0 }.joined(separator: " ")
     }
 
     // MARK: - Seconde main

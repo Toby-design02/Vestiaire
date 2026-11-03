@@ -98,7 +98,7 @@ struct StoryCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     dnaLine("\(stats.itemCount)", "pièces")
                     dnaLine(stats.wornShare.percent, "vraiment portées")
-                    dnaLine("\(stats.photographedDays)", "jours en photo")
+                    dnaLine("\(stats.loggedOutfits)", "tenues portées")
                     if let color = stats.topColor {
                         dnaLine(color.name.lowercased(), "ma couleur")
                     }

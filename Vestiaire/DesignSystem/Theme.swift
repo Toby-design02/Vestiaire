@@ -1,11 +1,10 @@
 import SwiftUI
 
 /// Couleurs et typographies de l'app.
-/// Trois ambiances, une seule identité :
-/// - la boutique (vestiaire, fiches, tenues) : blanc, noir, beaucoup d'air, façon e-shop de luxe ;
-/// - le feed (OOTD) : nuit, brut, façon BeReal ;
+/// Deux ambiances, une seule identité :
+/// - la boutique (vestiaire, tenues, journal, agenda, fiches) : blanc, noir, beaucoup d'air, façon e-shop de luxe ;
 /// - le Wrapped : le format story de Spotify Wrapped, avec les couleurs et les typos de la boutique.
-/// La couleur signature, le vermillon, sert aux moments « en direct » (OOTD du jour, alertes).
+/// La couleur signature, le vermillon, sert aux alertes et aux événements de l'agenda.
 enum Theme {
     // Boutique
     static let ink = Color(hex: "111111")
@@ -17,11 +16,8 @@ enum Theme {
     static let positive = Color(hex: "2F7A4B")
     static let negative = Color(hex: "B3321F")
 
-    // Feed (nuit)
-    static let night = Color(hex: "0B0B0A")
-    static let nightRaised = Color(hex: "1B1A18")
+    /// Blanc cassé : texte et boutons sur fond noir (Wrapped).
     static let bone = Color(hex: "F2EEE6")
-    static let nightMuted = Color(hex: "8E8981")
 
     // Wrapped : le format de Spotify Wrapped, avec les couleurs de l'app.
     enum Wrapped {
@@ -36,16 +32,6 @@ enum Theme {
     /// Titres éditoriaux de la boutique : serif fin, comme les grands e-shops.
     static func title(_ size: CGFloat = 28) -> Font {
         .system(size: size, weight: .light, design: .serif)
-    }
-
-    /// Gros chiffres du feed (compte à rebours, souvenirs) : sans serif très gras et resserré.
-    static func display(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .black).width(.compressed)
-    }
-
-    /// Logo et titres du feed : sans serif gras et large.
-    static func wordmark(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .heavy).width(.expanded)
     }
 
     static let label = Font.system(size: 11, weight: .semibold)

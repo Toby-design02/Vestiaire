@@ -215,7 +215,7 @@ private struct MiniWrappedStep: View {
         OnboardingPage(
             eyebrow: "Ton premier récap",
             title: "Voilà qui tu es, côté style.",
-            subtitle: "Calculé à partir de \(stats.photographedDays) jours où tu es en photo."
+            subtitle: "Calculé à partir de \(stats.loggedDays) jours de tenues retrouvées dans tes photos."
         ) {
             VStack(spacing: 1) {
                 if let favorite = stats.favorite {

@@ -41,8 +41,32 @@ struct BrandInfo: Hashable, Codable {
     var source: BrandSource = .photo
 }
 
+/// Statut d'une pièce. Seules les pièces `active` sont dans le dressing et dans les tenues proposées.
+/// `archived` : rangée de côté (hors saison, à retoucher…), restaurable, historique de port conservé.
+/// `sold` et `donated` : la pièce est sortie du vestiaire.
 enum ItemStatus: String, Codable {
-    case active, sold, donated
+    case active, archived, sold, donated
+}
+
+enum Season: String, CaseIterable, Identifiable, Codable {
+    case spring, summer, autumn, winter
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .spring: "Printemps"
+        case .summer: "Été"
+        case .autumn: "Automne"
+        case .winter: "Hiver"
+        }
+    }
+}
+
+/// Étiquette personnalisée, créée par l'utilisateur (« Uniforme », « À retoucher »…).
+struct ItemTag: Identifiable, Hashable, Codable {
+    var id = UUID()
+    var name: String
 }
 
 enum PhotoAngle: String, Codable {
@@ -87,4 +111,9 @@ struct Item: Identifiable, Hashable, Codable {
     /// Seconde main : d'autres utilisateurs peuvent faire une offre ou proposer un échange.
     var openToOffers = false
     var openToSwap = false
+    var isFavorite = false
+    /// Saisons et occasions renseignées par l'utilisateur ; vides tant qu'il ne les a pas indiquées.
+    var seasons: Set<Season> = []
+    var occasions: Set<Occasion> = []
+    var tagIDs: Set<UUID> = []
 }

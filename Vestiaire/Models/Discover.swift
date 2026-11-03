@@ -1,8 +1,19 @@
 import Foundation
 
+/// L'auteur d'un vestiaire à découvrir (créateur, ami d'ami).
+struct ProfileAuthor: Identifiable, Hashable {
+    var id = UUID()
+    var name: String
+    var handle: String
+    var hex: String
+    var followers: Int? = nil
+    /// Pour les amis d'amis : l'ami en commun.
+    var viaFriend: String? = nil
+}
+
 /// Un profil qu'on peut découvrir : vestiaire public, ou privé (demande d'ami).
 struct DiscoverProfile: Identifiable, Hashable {
-    var author: FeedAuthor
+    var author: ProfileAuthor
     var isPublic: Bool
     var style: String
     var pieces: [Item]

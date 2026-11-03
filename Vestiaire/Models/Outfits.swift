@@ -1,7 +1,7 @@
 import Foundation
 
 /// Occasion demandée à l'agent de tenues.
-enum Occasion: String, CaseIterable, Identifiable, Hashable {
+enum Occasion: String, CaseIterable, Identifiable, Hashable, Codable {
     case everyday, work, evening, weekend
 
     var id: String { rawValue }
@@ -67,6 +67,8 @@ struct GeneratedOutfit: Identifiable, Hashable {
     /// Image générée (mise en scène de la tenue). En attendant le pipeline, seule la tenue complète en a une.
     var renderName: String? = nil
     var reasons: [String] = []
+    /// Rangée dans les archives : elle sort de l'historique mais reste restaurable.
+    var isArchived = false
 }
 
 /// Lit le rayon, le type, la couleur et la marque dans une description libre :

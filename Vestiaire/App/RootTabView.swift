@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Les cinq onglets de la barre du bas.
+/// Les quatre onglets de la barre du bas.
+/// Le journal des tenues portées et l'agenda sont dans Vestiaire → Mes outfits.
 struct RootTabView: View {
     enum Tab {
-        case wardrobe, discover, feed, wrapped, profile
+        case wardrobe, discover, wrapped, profile
     }
 
     @State private var tab: Tab = .wardrobe
@@ -16,9 +17,6 @@ struct RootTabView: View {
             DiscoverView()
                 .tabItem { Label("Découvrir", systemImage: "magnifyingglass") }
                 .tag(Tab.discover)
-            FeedView()
-                .tabItem { Label("OOTD", systemImage: "camera") }
-                .tag(Tab.feed)
             WrappedView()
                 .tabItem { Label("Wrapped", systemImage: "chart.bar") }
                 .tag(Tab.wrapped)
@@ -26,8 +24,7 @@ struct RootTabView: View {
                 .tabItem { Label("Profil", systemImage: "person.crop.circle") }
                 .tag(Tab.profile)
         }
-        // Le feed est en mode nuit, façon BeReal ; le reste en mode boutique (clair).
-        .preferredColorScheme(tab == .feed ? .dark : .light)
+        .preferredColorScheme(.light)
     }
 }
 
