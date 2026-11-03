@@ -1,0 +1,8 @@
+# Clés API : jamais sur GitHub
+.env
+# Données personnelles (photos, recadrages, fiches, dépenses) : restent sur l'ordinateur
+data/
+out/
+# Modèles téléchargés par telecharger_modeles.sh
+models/*.onnx
+__pycache__/
