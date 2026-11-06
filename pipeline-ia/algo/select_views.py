@@ -62,7 +62,12 @@ for r in rows:
     r["me"] = None
     best = max(r["faces"], key=lambda f: cos(ref, np.array(f["emb"])), default=None)
     if best and cos(ref, np.array(best["emb"])) >= 0.40:
-        boxes = [p for p in r["persons"] if inside(best["b"], p)]
+        # la boîte doit vraiment être celle de ce visage : tête en haut de la boîte et à peu près centrée.
+        # Écarte la personne devant ou derrière l'utilisateur, et les visages sur une pièce d'identité ou une affiche.
+        fb = best["b"]; fh = max(fb[3] - fb[1], 1e-3); fcx = (fb[0] + fb[2]) / 2
+        boxes = [p for p in r["persons"] if inside(fb, p)
+                 and -0.25 <= (fb[1] - p[1]) / fh <= 0.9
+                 and abs(fcx - (p[0] + p[2]) / 2) <= 0.35 * (p[2] - p[0])]
         if boxes:
             pb = min(boxes, key=lambda p: (p[2] - p[0]) * (p[3] - p[1]))
             r["me"] = {"box": pb[:4], "angle": "face" if best["eye"] >= 0.30 else "profil",
