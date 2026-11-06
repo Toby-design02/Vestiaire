@@ -7,9 +7,10 @@ from datetime import datetime
 from collections import Counter
 from PIL import Image, ImageOps
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, photos_dir
+from common import R, CFG, photos_dir, galerie
 
 PH = photos_dir()
+GAL = galerie()
 CROPS = os.path.join(R, "out", "crops"); os.makedirs(CROPS, exist_ok=True)
 
 def cos(a, b): return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
@@ -26,17 +27,29 @@ for l in open(os.path.join(R, "data", "detections.jsonl")):
     except ValueError: continue
     rows.append(r)
 
-# 1. Visage de référence = le plus grand groupe de visages nets et seuls sur la photo
-#    (dans l'app : remplacé par le selfie de l'onboarding)
-cand = [np.array(f["emb"]) for r in rows if len(r["faces"]) == 1 for f in r["faces"] if f["s"] > 0.9 and f["b"][2] - f["b"][0] > 0.08]
-ref = None
-for e in cand[:400]:
-    n = sum(cos(e, c) > 0.45 for c in cand)
-    if ref is None or n > ref[1]: ref = (e, n)
-ref = np.mean([c for c in cand if cos(ref[0], c) > 0.45], 0)
-for _ in range(2):
-    allf = [np.array(f["emb"]) for r in rows for f in r["faces"]]
-    ref = np.mean([e for e in allf if cos(ref, e) > 0.42], 0)
+# 1. Visage de référence. Avec selfie.jpg (comme l'onboarding de l'app) : le visage du selfie,
+#    affiné par ses photos les plus ressemblantes de la galerie (autres angles, autres lumières).
+#    Sans selfie : le plus grand groupe de visages nets et seuls sur la photo (risqué sur une galerie entière).
+allf = [np.array(f["emb"]) for r in rows for f in r["faces"]]
+SELFIE = os.path.join(R, "selfie.jpg")
+if os.path.exists(SELFIE):
+    from detect import faces
+    im = ImageOps.exif_transpose(Image.open(SELFIE)).convert("RGB"); im.thumbnail((1280, 1280))
+    fs = faces(cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR))
+    if not fs: raise SystemExit("Aucun visage trouvé dans selfie.jpg : prends un selfie de face, bien éclairé.")
+    me = np.array(max(fs, key=lambda f: (f["b"][2] - f["b"][0]) * (f["b"][3] - f["b"][1]))["emb"])
+    proches = [e for e in allf if cos(me, e) > 0.50]
+    ref = np.mean([me] * max(1, len(proches) // 2) + proches, 0) if len(proches) >= 5 else me
+    print("selfie : visage trouvé,", len(proches), "photos très ressemblantes dans la galerie")
+else:
+    cand = [np.array(f["emb"]) for r in rows if len(r["faces"]) == 1 for f in r["faces"] if f["s"] > 0.9 and f["b"][2] - f["b"][0] > 0.08]
+    ref = None
+    for e in cand[:400]:
+        n = sum(cos(e, c) > 0.45 for c in cand)
+        if ref is None or n > ref[1]: ref = (e, n)
+    ref = np.mean([c for c in cand if cos(ref[0], c) > 0.45], 0)
+    for _ in range(2):
+        ref = np.mean([e for e in allf if cos(ref, e) > 0.42], 0)
 
 def inside(fb, pb):
     cx, cy = (fb[0] + fb[2]) / 2, (fb[1] + fb[3]) / 2
@@ -110,7 +123,7 @@ for si, S in enumerate(sess):
         c = im.crop((int(W * max(0, b[0] - mx)), int(H * max(0, b[1] - my)), int(W * min(1, b[2] + mx)), int(H * min(1, b[3] + my))))
         c.thumbnail((CFG["recadrage_cote_long_px"],) * 2)
         cp = os.path.join(CROPS, f"{entry['id']}_{k}_{ang}.jpg"); c.save(cp, quality=85)
-        entry["vues"].append({"photo": r["f"], "angle": ang, "recadrage": os.path.relpath(cp, R)})
+        entry["vues"].append({"photo": r["f"], "id_photo": GAL.get(r["f"], {}).get("id"), "angle": ang, "recadrage": os.path.relpath(cp, R)})
     out.append(entry)
 
 json.dump(out, open(os.path.join(R, "data", "sessions.json"), "w"), ensure_ascii=False, indent=1)

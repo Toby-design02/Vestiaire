@@ -6,3 +6,6 @@ out/
 # Modèles téléchargés par telecharger_modeles.sh
 models/*.onnx
 __pycache__/
+selfie.jpg
+selfie.*
+outils/lire_galerie

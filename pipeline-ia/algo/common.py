@@ -10,7 +10,16 @@ os.makedirs(os.path.join(R, "data"), exist_ok=True)
 TARIFS = {"claude-haiku-5-5": {"in": 0.10, "out": 0.50},
           "gpt-image-1-mini": {"low": 0.005, "medium": 0.011, "high": 0.036, "in_per_mtok": 2.5}}
 
+GALERIE_INDEX = os.path.join(R, "data", "galerie.jsonl")
+
+def galerie():
+    """Index écrit par outils/lire_galerie.swift : {fichier: {"id": identifiant de la photo, "dt": date}}. Vide sinon."""
+    if not os.path.exists(GALERIE_INDEX): return {}
+    return {d["f"]: d for d in map(json.loads, open(GALERIE_INDEX))}
+
 def photos_dir():
+    """La photothèque lue par outils/lire_galerie.swift si elle existe, sinon le dossier de config.json."""
+    if os.path.exists(GALERIE_INDEX): return os.path.join(R, "data", "galerie")
     p = CFG["dossier_photos"]
     return p if os.path.isabs(p) else os.path.normpath(os.path.join(R, p))
 

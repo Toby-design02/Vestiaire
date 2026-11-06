@@ -5,9 +5,10 @@ import os, sys, json, numpy as np, cv2
 from multiprocessing import Pool
 from PIL import Image, ImageOps
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, photos_dir
+from common import R, CFG, photos_dir, galerie
 
 PH = photos_dir()
+GAL = galerie()          # dates venant de la photothèque (les copies de travail n'ont plus d'EXIF)
 OUT = os.path.join(R, "data", "detections.jsonl")
 M = os.path.join(R, "models")
 _m = {}
@@ -58,7 +59,7 @@ def faces(img):
 def one(f):
     try:
         im = Image.open(os.path.join(PH, f)); ex = im.getexif(); sub = ex.get_ifd(0x8769)
-        dt = sub.get(36867) or ex.get(306); make = ex.get(271); make = str(make) if make else None
+        dt = GAL[f]["dt"] if f in GAL else (sub.get(36867) or ex.get(306)); make = ex.get(271); make = str(make) if make else None
         if not dt or str(dt)[:4] < CFG["date_min"][:4]: return {"f": f, "dt": str(dt) if dt else None, "skip": "date"}
         im = ImageOps.exif_transpose(im).convert("RGB"); im.thumbnail((1280, 1280))
         img = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
@@ -74,7 +75,8 @@ if __name__ == "__main__":
         for l in open(OUT):
             try: done.add(json.loads(l)["f"])
             except Exception: pass
-    todo = sorted(f for f in os.listdir(PH) if f.lower().endswith((".jpg", ".jpeg")) and f not in done)
+    files = [f for f in GAL if os.path.exists(os.path.join(PH, f))] if GAL else os.listdir(PH)
+    todo = sorted(f for f in files if f.lower().endswith((".jpg", ".jpeg")) and f not in done)   # photos seulement
     if len(sys.argv) > 1: todo = todo[:int(sys.argv[1])]
     print("à traiter", len(todo), "| déjà faites", len(done), flush=True)
     with open(OUT, "a") as fo, Pool(int(os.environ.get("WORKERS", 3))) as pool:

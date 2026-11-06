@@ -6,11 +6,13 @@ Reconstitue le vestiaire à partir des photos où l'utilisateur apparaît, puis 
 
 | Étape | Script | Outil | Coût |
 | --- | --- | --- | --- |
+| 0. Lecture de la photothèque (photos seulement, sans vidéos ni captures d'écran), comme l'app sur l'iPhone | `outils/lire_galerie.swift` | PhotoKit sur le Mac | 0 |
 | 1a. Dates, personnes, visages | `algo/detect.py` | modèles OpenCV en local | 0 |
 | 1b. Reconnaissance, séances, angles (face, profil, plein pied, sans visage), meilleures vues, recadrages | `algo/select_views.py` | code | 0 |
 | 2. Lecture des tenues → fiche JSON de chaque pièce | `algo/lecture.py` | Claude Haiku 5.5, API Batch | ≈ 0,05 à 0,15 $ |
 | 3. Fusion des doublons | `algo/dedoublonnage.py` | code, et Haiku seulement si ambigu | ≈ 0,01 $ |
 | 4. Photo produit de chaque pièce | `algo/generation.py` | gpt-image-1-mini + prompt P1 | ≈ 0,005 à 0,011 $ par pièce |
+| 5. Export au format de l'app (`Item`, `Session`, `WearEvent`) | `algo/export_app.py` | code | 0 |
 
 Seuls les recadrages basse résolution de l'utilisateur (étape 1b) sont envoyés aux API, jamais les photos brutes. Le plafond de dépense est dans `config.json` (`budget_max_usd`, 1 $ par défaut) : les scripts s'arrêtent avant de le dépasser. Le détail est dans `data/depenses.json`.
 
@@ -34,12 +36,14 @@ cd Vestiaire/pipeline-ia
 pip3 install -r requirements.txt
 ./telecharger_modeles.sh
 
-# 2. Les photos : exporter l'album « Personnes > Thibaut » de l'app Photos (Fichier > Exporter,
-#    JPEG taille moyenne, sans les vidéos) dans un dossier, puis indiquer ce dossier dans
-#    config.json → "dossier_photos" (chemin complet, ou relatif à pipeline-ia/).
+# 2. Le selfie de référence : un selfie récent, de face, nommé selfie.jpg, dans pipeline-ia/
+#    (comme l'onboarding de l'app : c'est lui qui dit à l'algo qui tu es).
 
 # 3. Les clés API : copier .env.exemple en .env et y coller les deux clés.
-cp .env.exemple .env
+[ -f .env ] || cp .env.exemple .env   # ne remplace jamais un .env existant
+
+# 3 bis. La photothèque, sans rien exporter : le Mac demande l'accès aux photos, comme l'iPhone.
+swiftc -O outils/lire_galerie.swift -o outils/lire_galerie && ./outils/lire_galerie
 
 # 4. Étapes gratuites
 python3 algo/detect.py            # se relance où il s'est arrêté si on le coupe
@@ -56,6 +60,9 @@ python3 algo/lecture.py soumettre
 python3 algo/lecture.py recuperer
 python3 algo/dedoublonnage.py
 python3 algo/generation.py tout
+
+# 7. Pour l'app : out/app/dressing.json + out/app/images/
+python3 algo/export_app.py
 ```
 
-Les sorties (`data/`, `out/`) et le fichier `.env` restent sur l'ordinateur : ils sont exclus de GitHub (`.gitignore`), car ils contiennent des photos et des données personnelles.
+Les sorties (`data/`, `out/`), le selfie et le fichier `.env` restent sur l'ordinateur : ils sont exclus de GitHub (`.gitignore`), car ils contiennent des photos et des données personnelles.
