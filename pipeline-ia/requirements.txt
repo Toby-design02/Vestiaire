@@ -3,3 +3,4 @@ pillow
 opencv-python-headless>=4.8
 anthropic
 openai
+pillow-heif

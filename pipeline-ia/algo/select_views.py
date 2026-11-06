@@ -34,6 +34,8 @@ allf = [np.array(f["emb"]) for r in rows for f in r["faces"]]
 SELFIE = os.path.join(R, "selfie.jpg")
 if os.path.exists(SELFIE):
     from detect import faces
+    try: from pillow_heif import register_heif_opener; register_heif_opener()   # selfie au format iPhone (HEIC)
+    except ImportError: pass
     im = ImageOps.exif_transpose(Image.open(SELFIE)).convert("RGB"); im.thumbnail((1280, 1280))
     fs = faces(cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR))
     if not fs: raise SystemExit("Aucun visage trouvé dans selfie.jpg : prends un selfie de face, bien éclairé.")
