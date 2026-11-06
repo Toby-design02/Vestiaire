@@ -15,7 +15,9 @@ MODEL = CFG["modeles"]["image"]
 def go(limit):
     cli = OpenAI(api_key=env()["OPENAI_API_KEY"])
     todo = [p for p in PIECES if p["ports"] >= CFG["ports_min_pour_generation"] and p["decoupes"] and not p["photo_produit"]]
-    if limit: todo = todo[:limit]
+    if limit:   # mini-test : complète avec des pièces vues une seule fois, pour juger la qualité tout de suite
+        todo += [p for p in PIECES if p not in todo and p["decoupes"] and not p["photo_produit"] and p["rayon"] != "accessoire"]
+        todo = todo[:limit]
     print(len(todo), "pièces à générer")
     for p in todo:
         q = CFG["image_qualite_si_logo"] if p.get("logos_textes") else CFG["image_qualite"]

@@ -6,10 +6,10 @@ variables: {{angles}}
 ---
 Ces photos montrent la même personne, dans la même tenue, sous des angles différents ({{angles}}).
 Une photo marquée « sans_visage » peut montrer le dos de la personne ou quelqu'un d'autre : utilise-la seulement si on y voit clairement la même tenue que sur les autres photos, sinon ignore-la.
-Liste chaque vêtement et accessoire porté par cette personne. Ignore les autres personnes.
+Liste chaque vêtement et accessoire porté par cette personne et clairement visible. Ignore les autres personnes et les pièces trop coupées pour être décrites.
 Si aucune tenue n'est visible (document, capture d'écran, paysage), réponds {"pieces": []}.
 
-Réponds uniquement en JSON :
+Réponds uniquement avec le JSON, sans ``` ni texte autour :
 {"pieces":[{
  "rayon": "veste|pull|haut|bas|chaussures|accessoire",
  "type": "ex. chemise, jean, pull col rond",
@@ -24,4 +24,5 @@ Réponds uniquement en JSON :
  "boite": [x0, y0, x1, y1, "indice de la photo"],
  "confiance": 0.0
 }]}
-Coordonnées de "boite" en millièmes de la photo (0 à 1000). Sois bref.
+Coordonnées de "boite" en millièmes de la photo (0 à 1000).
+Sois très bref : 6 mots maximum par texte, null quand ce n'est pas visible.
