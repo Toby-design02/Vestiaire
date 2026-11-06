@@ -65,7 +65,8 @@ for r in rows:
         boxes = [p for p in r["persons"] if inside(best["b"], p)]
         if boxes:
             pb = min(boxes, key=lambda p: (p[2] - p[0]) * (p[3] - p[1]))
-            r["me"] = {"box": pb[:4], "angle": "face" if best["eye"] >= 0.30 else "profil"}
+            r["me"] = {"box": pb[:4], "angle": "face" if best["eye"] >= 0.30 else "profil",
+                       "sim": round(cos(ref, np.array(best["emb"])), 3), "fb": best["b"]}
     r["nofaceperson"] = [p for p in r["persons"] if not any(inside(f["b"], p) for f in r["faces"])
                          and (p[2] - p[0]) * (p[3] - p[1]) > 0.04]
 
@@ -125,7 +126,7 @@ for si, S in enumerate(sess):
         c = im.crop((int(W * max(0, b[0] - mx)), int(H * max(0, b[1] - my)), int(W * min(1, b[2] + mx)), int(H * min(1, b[3] + my))))
         c.thumbnail((CFG["recadrage_cote_long_px"],) * 2)
         cp = os.path.join(CROPS, f"{entry['id']}_{k}_{ang}.jpg"); c.save(cp, quality=85)
-        entry["vues"].append({"photo": r["f"], "id_photo": GAL.get(r["f"], {}).get("id"), "angle": ang, "recadrage": os.path.relpath(cp, R)})
+        entry["vues"].append({"photo": r["f"], "sim": (r["me"] or {}).get("sim"), "boite": [round(x, 3) for x in b], "fb": (r["me"] or {}).get("fb"), "id_photo": GAL.get(r["f"], {}).get("id"), "angle": ang, "recadrage": os.path.relpath(cp, R)})
     out.append(entry)
 
 json.dump(out, open(os.path.join(R, "data", "sessions.json"), "w"), ensure_ascii=False, indent=1)
