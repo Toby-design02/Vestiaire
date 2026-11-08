@@ -67,7 +67,8 @@ for r in rows:
         fb = best["b"]; fh = max(fb[3] - fb[1], 1e-3); fcx = (fb[0] + fb[2]) / 2
         boxes = [p for p in r["persons"] if inside(fb, p)
                  and -0.25 <= (fb[1] - p[1]) / fh <= 0.9
-                 and abs(fcx - (p[0] + p[2]) / 2) <= 0.35 * (p[2] - p[0])]
+                 and abs(fcx - (p[0] + p[2]) / 2) <= 0.35 * (p[2] - p[0])
+                 and (p[3] - p[1]) * 0.55 >= fh]          # il faut voir le buste : écarte photos d'identité, FaceTime, gros plans
         if boxes:
             pb = min(boxes, key=lambda p: (p[2] - p[0]) * (p[3] - p[1]))
             r["me"] = {"box": pb[:4], "angle": "face" if best["eye"] >= 0.30 else "profil",
