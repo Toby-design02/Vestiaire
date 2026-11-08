@@ -12,11 +12,21 @@ PIECES = json.load(open(PJ))
 OUTD = os.path.join(R, "out", "produits"); os.makedirs(OUTD, exist_ok=True)
 MODEL = CFG["modeles"]["image"]
 
+from PIL import Image
+def assez_visible(p):
+    """Au moins une découpe assez grande : sinon le modèle invente la pièce (ex. un t-shirt vu seulement au col)."""
+    for f in p.get("decoupes") or []:
+        try:
+            w, h = Image.open(os.path.join(R, f)).size
+            if min(w, h) >= 160 and w * h >= 60000: return True
+        except Exception: pass
+    return False
+
 def go(limit):
     cli = OpenAI(api_key=env()["OPENAI_API_KEY"])
-    todo = [p for p in PIECES if p["ports"] >= CFG["ports_min_pour_generation"] and p["decoupes"] and not p["photo_produit"]]
+    todo = [p for p in PIECES if p["ports"] >= CFG["ports_min_pour_generation"] and p["decoupes"] and not p["photo_produit"] and assez_visible(p)]
     if limit:   # mini-test : complète avec des pièces vues une seule fois, pour juger la qualité tout de suite
-        todo += [p for p in PIECES if p not in todo and p["decoupes"] and not p["photo_produit"] and p["rayon"] != "accessoire"]
+        todo += [p for p in PIECES if p not in todo and p["decoupes"] and not p["photo_produit"] and p["rayon"] != "accessoire" and assez_visible(p)]
         todo = todo[:limit]
     print(len(todo), "pièces à générer")
     for p in todo:
