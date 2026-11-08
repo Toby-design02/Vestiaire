@@ -19,10 +19,14 @@ Réponds uniquement avec le JSON, sans ``` ni texte autour :
  "coupe_col": "détails de coupe et de col, court",
  "details_face": "court",
  "details_dos": "court, null si dos non visible",
- "logos_textes": "texte exact lu ou description du logo, sinon null",
+ "logos_textes": "texte exact lu (… pour une partie cachée) ou description du logo, sinon null",
+ "visible": "entier|partiel",
+ "logo_complet": true,
  "marque_probable": "seulement si lisible, sinon null",
  "boite": [x0, y0, x1, y1, "indice de la photo"],
  "confiance": 0.0
 }]}
+"visible" : entier si toute la pièce ou presque est visible ; partiel si une partie importante est cachée (par une autre pièce, un bras, un objet) ou hors cadre.
+"logo_complet" : true si le logo ou le texte est entièrement lisible ; false si une partie est cachée (veste ouverte, bras, pli, cadrage) ; null s'il n'y en a pas.
 Coordonnées de "boite" en millièmes de la photo (0 à 1000).
 Sois très bref : 6 mots maximum par texte, null quand ce n'est pas visible.

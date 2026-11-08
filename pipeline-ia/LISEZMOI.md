@@ -10,7 +10,7 @@ Reconstitue le vestiaire à partir des photos où l'utilisateur apparaît, puis 
 | 1a. Dates, personnes, visages | `algo/detect.py` | modèles OpenCV en local | 0 |
 | 1b. Reconnaissance, séances, angles (face, profil, plein pied, sans visage), meilleures vues, recadrages | `algo/select_views.py` | code | 0 |
 | 2. Lecture des tenues → fiche JSON de chaque pièce | `algo/lecture.py` | Claude Haiku 5.5, API Batch | ≈ 0,05 à 0,15 $ |
-| 3. Fusion des doublons | `algo/dedoublonnage.py` | code, et Haiku seulement si ambigu | ≈ 0,01 $ |
+| 3. Regroupement des photos de chaque pièce (couleurs réelles, puis Haiku si doute), choix des meilleures vues (pièce entière, logo lisible, angles variés) ; une pièce sans photo suffisante est notée « photos insuffisantes » et n'est pas générée | `algo/dedoublonnage.py` | code, et Haiku seulement si ambigu | ≈ 0,02 $ |
 | 4. Photo produit de chaque pièce | `algo/generation.py` | gpt-image-1-mini + prompt P1 | ≈ 0,005 à 0,011 $ par pièce |
 | 5. Export au format de l'app (`Item`, `Session`, `WearEvent`) | `algo/export_app.py` | code | 0 |
 

@@ -11,4 +11,4 @@ Description de la pièce : {{description}}
 Détails visibles dans le dos : {{details_dos}}
 Logos ou textes visibles : {{logos_textes}}
 
-Reproduis fidèlement la couleur, la matière, le col et les proportions visibles sur les photos. N'ajoute aucun logo, motif ou détail qui n'apparaît pas sur les photos. Aucune personne, aucun mannequin.
+Reproduis fidèlement la couleur, la matière, le col et les proportions visibles sur les photos. Les photos peuvent montrer la pièce sous ou avec d'autres vêtements : ne reproduis que cette pièce. N'ajoute aucun logo, motif ou détail qui n'apparaît pas sur les photos. Aucune personne, aucun mannequin.
