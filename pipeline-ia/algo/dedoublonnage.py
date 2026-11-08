@@ -35,6 +35,7 @@ obs = []
 for sid, pieces in LECT.items():
     if not isinstance(pieces, list): continue
     for p in pieces:
+        if (p.get("confiance") or 1) < 0.5: continue          # pièce trop peu visible pour être décrite
         c, ang = crop_of(sid, p)
         obs.append({"sid": sid, "date": SESS[sid]["debut"][:10].replace(":", "-"), "p": p, "crop": c, "angle": ang,
                     "h": hist(c) if c else None,
@@ -51,13 +52,16 @@ def meme_piece(a, b):
     guard(0.0005, "arbitrage doublon")
     import anthropic
     _cli = _cli or anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
-    m = _cli.messages.create(model=MODEL, max_tokens=5, messages=[{"role": "user", "content": [
+    try:
+        m = _cli.messages.create(model=MODEL, max_tokens=20, messages=[{"role": "user", "content": [
         {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64(a["crop"])}},
         {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64(b["crop"])}},
         {"type": "text", "text": "Est-ce exactement le même vêtement (même pièce, pas seulement le même style) ? Réponds oui ou non."}]}])
+    except Exception as e:
+        print("arbitrage impossible, pièces gardées séparées :", str(e)[:120]); return False
     n_arb += 1
     charge((m.usage.input_tokens * TARIFS[MODEL]["in"] + m.usage.output_tokens * TARIFS[MODEL]["out"]) / 1e6, "arbitrage doublon")
-    return "oui" in m.content[0].text.lower()
+    return "oui" in "".join(x.text for x in m.content if x.type == "text").lower()
 
 # 2. regroupement : même rayon + motif + couleur principale, puis ressemblance des couleurs de la découpe
 pieces = []
