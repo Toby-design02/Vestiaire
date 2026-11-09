@@ -153,7 +153,7 @@ def fusion(unites):
             "crop": best["crop"], "q": best["q"], "e": e / (np.linalg.norm(e) + 1e-9), "c": np.median([o["c"] for o in O], 0)}
 
 familles = {}
-for o in obs: familles.setdefault(o["fam"], []).append(fusion([o]))
+for o in obs: familles.setdefault(o["fam"], []).append(fusion([{"obs": [o]}]))
 print(len(obs), "photos de pièces à regrouper", flush=True)
 for passage in (1, 2):      # 2e passage : on compare les pièces formées entre elles, pour rattraper les photos d'une même pièce restées séparées
     with ThreadPoolExecutor(6) as ex:
