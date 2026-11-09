@@ -58,3 +58,7 @@ Le projet est sur GitHub (dépôt privé `Toby-design02/Vestiaire`). Chaque lund
 
 - Sauvegarder tout de suite : `zsh tools/sauvegarde-github.sh`
 - Modifier ou arrêter la sauvegarde automatique : dans l'app Claude, section des tâches programmées.
+
+## Pipeline IA
+
+Le code qui reconstitue le dressing à partir de la galerie photo est dans [`pipeline-ia/`](pipeline-ia/LISEZMOI.md).
