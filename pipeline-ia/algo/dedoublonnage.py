@@ -2,7 +2,7 @@
 1. En local (gratuit) : une empreinte visuelle de chaque découpe (réseau MobileNet) + sa couleur réelle,
    pour trouver les photos qui se ressemblent le plus.
 2. Haiku confirme : une planche de 16 photos, la n°1 étant la référence (≈ 0,0001 $ la planche).
-Usage : python3 algo/dedoublonnage.py
+Usage : python3 algo/dedoublonnage.py            (python3 algo/dedoublonnage.py --estimer : compte les planches, sans appel ni écriture)
 Sortie : data/pieces.json (+ out/pieces/<id>_<k>.jpg, les meilleures découpes de chaque pièce)."""
 import os, sys, json, base64, io
 import numpy as np, cv2
@@ -69,6 +69,7 @@ from concurrent.futures import ThreadPoolExecutor
 from common import prompt
 import threading
 _cli, n_planches, _verrou = None, 0, threading.Lock()
+ESTIMER = "--estimer" in sys.argv
 
 def planche(liste):
     T = 200; im = Image.new("RGB", (4 * T, 4 * T), "white"); d = ImageDraw.Draw(im)
@@ -82,6 +83,9 @@ def planche(liste):
 def memes(ref, cands, fam):
     """Numéros (dans cands) que Haiku reconnaît comme la même pièce que ref."""
     global _cli, n_planches
+    if ESTIMER:
+        with _verrou: n_planches += 1
+        return []
     import anthropic
     with _verrou:
         guard(0.0005, "regroupement des pièces"); _cli = _cli or anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
@@ -124,6 +128,9 @@ for o in obs: familles.setdefault(o["fam"], []).append(o)
 print(len(obs), "photos de pièces à regrouper", flush=True)
 with ThreadPoolExecutor(6) as ex:
     pieces = [g for gs in ex.map(lambda kv: regrouper(*kv), familles.items()) for g in gs]
+
+if ESTIMER:
+    print(n_planches, "planches Haiku au maximum, soit ≈", round(n_planches * 0.00012, 3), "$"); raise SystemExit
 
 # 3. fiche finale de chaque pièce
 from collections import Counter
