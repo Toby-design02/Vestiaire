@@ -98,7 +98,7 @@ def memes(ref, cands, fam):
     txt = prompt("textes/T2_meme_piece.md", n=len(cands) + 1, famille=fam)
     for essai in range(3):
         try:
-            m = _cli.messages.create(model=MODEL, max_tokens=60, messages=[{"role": "user", "content": [
+            m = _cli.messages.create(model=MODEL, max_tokens=1500, extra_body={"output_config": {"effort": "low"}}, messages=[{"role": "user", "content": [
                 {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": planche([ref] + cands)}},
                 {"type": "text", "text": txt}]}])
             break
@@ -113,7 +113,7 @@ def memes(ref, cands, fam):
     try: nums = [int(n) for n in json.loads(t[t.find("{"): t.rfind("}") + 1]).get("memes", [])]
     except Exception: nums = [int(n) for n in re.findall(r"\d+", t)] if "memes" in t else []
     with _verrou:
-        LOG.write(json.dumps({"ref": ref["sid"], "fam": fam, "reponse": t[:300], "stop": m.stop_reason}, ensure_ascii=False) + "\n"); LOG.flush()
+        LOG.write(json.dumps({"ref": ref["sid"], "fam": fam, "reponse": t[:300], "stop": m.stop_reason, "tokens_sortie": m.usage.output_tokens}, ensure_ascii=False) + "\n"); LOG.flush()
         if TEST: planche_img([ref] + cands).save(os.path.join(R, "data", f"planche_test_{n_planches}.jpg"), quality=80)
     return [cands[n - 2] for n in nums if 2 <= n <= len(cands) + 1]
 

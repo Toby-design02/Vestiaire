@@ -17,7 +17,7 @@ def request(s):
         content.append({"type": "text", "text": f"Photo {i} ({v['angle']})"})
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}})
     content.append({"type": "text", "text": prompt("textes/T1_lecture_tenue.md", angles=", ".join(v["angle"] for v in s["vues"]))})
-    return {"custom_id": s["id"], "params": {"model": MODEL, "max_tokens": 2000, "messages": [{"role": "user", "content": content}]}}
+    return {"custom_id": s["id"], "params": {"model": MODEL, "max_tokens": 4000, "output_config": {"effort": "low"}, "messages": [{"role": "user", "content": content}]}}
 
 def lire_json(txt):
     """Extrait {"pieces": [...]} de la réponse ; si elle est coupée, garde les pièces complètes."""
