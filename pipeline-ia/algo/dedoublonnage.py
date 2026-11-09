@@ -144,7 +144,7 @@ with ThreadPoolExecutor(6) as ex:
 if TEST:
     print(open(os.path.join(R, "data", "regroupement_log.jsonl")).read()); raise SystemExit
 if ESTIMER:
-    print(n_planches, "planches Haiku au maximum, soit ≈", round(n_planches * 0.00012, 3), "$"); raise SystemExit
+    print(n_planches, "planches Haiku au maximum, soit ≈", round(n_planches * 0.00035, 3), "$"); raise SystemExit
 
 # 3. fiche finale de chaque pièce
 from collections import Counter
