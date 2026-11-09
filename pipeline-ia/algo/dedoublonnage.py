@@ -70,20 +70,26 @@ from common import prompt
 import threading
 _cli, n_planches, _verrou = None, 0, threading.Lock()
 ESTIMER = "--estimer" in sys.argv
+TEST = int(sys.argv[sys.argv.index("--test") + 1]) if "--test" in sys.argv else 0   # --test N : N planches seulement, enregistrées dans data/
+LOG = open(os.path.join(R, "data", "regroupement_log.jsonl"), "w")
+import re
 
 def planche(liste):
+    b = io.BytesIO(); planche_img(liste).save(b, "JPEG", quality=82); return base64.b64encode(b.getvalue()).decode()
+
+def planche_img(liste):
     T = 200; im = Image.new("RGB", (4 * T, 4 * T), "white"); d = ImageDraw.Draw(im)
     try: f = ImageFont.load_default(size=30)
     except Exception: f = ImageFont.load_default()
     for k, o in enumerate(liste):
         c = o["crop"].copy(); c.thumbnail((T - 6, T - 6)); X, Y = (k % 4) * T, (k // 4) * T
         im.paste(c, (X + 3, Y + 3)); d.rectangle([X, Y, X + 44, Y + 34], fill="white"); d.text((X + 4, Y + 1), str(k + 1), fill="red", font=f)
-    b = io.BytesIO(); im.save(b, "JPEG", quality=82); return base64.b64encode(b.getvalue()).decode()
+    return im
 
 def memes(ref, cands, fam):
     """Numéros (dans cands) que Haiku reconnaît comme la même pièce que ref."""
     global _cli, n_planches
-    if ESTIMER:
+    if ESTIMER or (TEST and n_planches >= TEST):
         with _verrou: n_planches += 1
         return []
     import anthropic
@@ -104,9 +110,12 @@ def memes(ref, cands, fam):
         n_planches += 1
         charge((m.usage.input_tokens * TARIFS[MODEL]["in"] + m.usage.output_tokens * TARIFS[MODEL]["out"]) / 1e6, "regroupement (planche)")
     t = "".join(x.text for x in m.content if x.type == "text")
-    try: nums = json.loads(t[t.find("{"): t.rfind("}") + 1]).get("memes", [])
-    except Exception: return []
-    return [cands[n - 2] for n in nums if isinstance(n, int) and 2 <= n <= len(cands) + 1]
+    try: nums = [int(n) for n in json.loads(t[t.find("{"): t.rfind("}") + 1]).get("memes", [])]
+    except Exception: nums = [int(n) for n in re.findall(r"\d+", t)] if "memes" in t else []
+    with _verrou:
+        LOG.write(json.dumps({"ref": ref["sid"], "fam": fam, "reponse": t[:300], "stop": m.stop_reason}, ensure_ascii=False) + "\n"); LOG.flush()
+        if TEST: planche_img([ref] + cands).save(os.path.join(R, "data", f"planche_test_{n_planches}.jpg"), quality=80)
+    return [cands[n - 2] for n in nums if 2 <= n <= len(cands) + 1]
 
 def regrouper(fam, liste):
     reste = sorted(liste, key=lambda o: -o["q"]); groupes = []
@@ -129,6 +138,8 @@ print(len(obs), "photos de pièces à regrouper", flush=True)
 with ThreadPoolExecutor(6) as ex:
     pieces = [g for gs in ex.map(lambda kv: regrouper(*kv), familles.items()) for g in gs]
 
+if TEST:
+    print(open(os.path.join(R, "data", "regroupement_log.jsonl")).read()); raise SystemExit
 if ESTIMER:
     print(n_planches, "planches Haiku au maximum, soit ≈", round(n_planches * 0.00012, 3), "$"); raise SystemExit
 
