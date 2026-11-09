@@ -121,7 +121,10 @@ def regrouper(fam, liste):
     reste = sorted(liste, key=lambda o: -o["q"]); groupes = []
     while reste:
         ref = reste.pop(0); groupe = [ref]
-        if reste:
+        # seule une photo nette et assez grande sert de référence (les petites découpes peuvent rejoindre une pièce,
+        # pas en créer une à vérifier) ; les accessoires ne sont pas regroupés pour l'instant
+        nette = min(ref["crop"].size) >= 160 and ref["crop"].width * ref["crop"].height >= 60000
+        if reste and nette and fam != "accessoire":
             sim = np.array([float(o["e"] @ ref["e"]) - np.linalg.norm(o["c"] - ref["c"]) / 120 for o in reste])
             idx = [i for i in np.argsort(-sim) if sim[i] >= SIM_MIN and reste[i]["sid"] != ref["sid"]][:CANDIDATS]
             if idx:
