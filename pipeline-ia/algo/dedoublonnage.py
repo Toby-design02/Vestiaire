@@ -54,10 +54,10 @@ def qualite(o):
 obs = []
 for sid, pieces in LECT.items():
     if not isinstance(pieces, list): continue
-    for p in pieces:
+    for j, p in enumerate(pieces):
         if (p.get("confiance") or 1) < 0.5: continue          # pièce trop peu visible pour être décrite
         c, ang = crop_of(sid, p); r = norm(p.get("rayon"))
-        o = {"sid": sid, "date": SESS[sid]["debut"][:10].replace(":", "-"), "p": p, "crop": c, "angle": ang,
+        o = {"id": f"{sid}#{j}", "sid": sid, "date": SESS[sid]["debut"][:10].replace(":", "-"), "p": p, "crop": c, "angle": ang,
              "fam": FAMILLE.get(r, r)}
         if c is None: continue
         o["q"] = qualite(o); o["e"] = empreinte(c); o["c"] = couleur(c); obs.append(o)
@@ -86,9 +86,14 @@ def planche_img(liste):
         im.paste(c, (X + 3, Y + 3)); d.rectangle([X, Y, X + 44, Y + 34], fill="white"); d.text((X + 4, Y + 1), str(k + 1), fill="red", font=f)
     return im
 
+CACHE_F = os.path.join(R, "data", "cache_planches.json")
+CACHE = json.load(open(CACHE_F)) if os.path.exists(CACHE_F) else {}   # réponses déjà payées : une relance ne les repaie pas
+
 def memes(ref, cands, fam):
-    """Numéros (dans cands) que Haiku reconnaît comme la même pièce que ref."""
+    """Unités (dans cands) que Haiku reconnaît comme la même pièce que ref."""
     global _cli, n_planches
+    cle = ref["id"] + "|" + ",".join(c["id"] for c in cands)
+    if cle in CACHE: return [c for c in cands if c["id"] in CACHE[cle]]
     if ESTIMER or (TEST and n_planches >= TEST):
         with _verrou: n_planches += 1
         return []
@@ -106,40 +111,57 @@ def memes(ref, cands, fam):
             err = e
     else:
         print("regroupement impossible pour une pièce, gardée seule :", str(err)[:120]); return []
-    with _verrou:
-        n_planches += 1
-        charge((m.usage.input_tokens * TARIFS[MODEL]["in"] + m.usage.output_tokens * TARIFS[MODEL]["out"]) / 1e6, "regroupement (planche)")
     t = "".join(x.text for x in m.content if x.type == "text")
     try: nums = [int(n) for n in json.loads(t[t.find("{"): t.rfind("}") + 1]).get("memes", [])]
     except Exception: nums = [int(n) for n in re.findall(r"\d+", t)] if "memes" in t else []
+    res = [cands[n - 2] for n in nums if 2 <= n <= len(cands) + 1]
     with _verrou:
-        LOG.write(json.dumps({"ref": ref["sid"], "fam": fam, "reponse": t[:300], "stop": m.stop_reason, "tokens_sortie": m.usage.output_tokens}, ensure_ascii=False) + "\n"); LOG.flush()
+        n_planches += 1
+        charge((m.usage.input_tokens * TARIFS[MODEL]["in"] + m.usage.output_tokens * TARIFS[MODEL]["out"]) / 1e6, "regroupement (planche)")
+        CACHE[cle] = [c["id"] for c in res]
+        if n_planches % 20 == 0: json.dump(CACHE, open(CACHE_F, "w"))
+        LOG.write(json.dumps({"ref": ref["id"], "fam": fam, "reponse": t[:300], "stop": m.stop_reason, "tokens_sortie": m.usage.output_tokens}, ensure_ascii=False) + "\n"); LOG.flush()
         if TEST: planche_img([ref] + cands).save(os.path.join(R, "data", f"planche_test_{n_planches}.jpg"), quality=80)
-    return [cands[n - 2] for n in nums if 2 <= n <= len(cands) + 1]
+    return res
 
-def regrouper(fam, liste):
-    reste = sorted(liste, key=lambda o: -o["q"]); groupes = []
+def nette(u): return min(u["crop"].size) >= 160 and u["crop"].width * u["crop"].height >= 60000
+
+def regrouper(fam, unites):
+    """Unité = une photo de pièce (1er passage) ou un groupe déjà formé (2e passage, représenté par sa meilleure photo).
+    La meilleure unité pas encore classée sert de référence ; Haiku dit lesquelles de ses 15 voisines sont la même pièce."""
+    reste = sorted(unites, key=lambda u: (-len(u["obs"]), -u["q"])); groupes = []
     while reste:
         ref = reste.pop(0); groupe = [ref]
-        # seule une photo nette et assez grande sert de référence (les petites découpes peuvent rejoindre une pièce,
-        # pas en créer une à vérifier) ; les accessoires ne sont pas regroupés pour l'instant
-        nette = min(ref["crop"].size) >= 160 and ref["crop"].width * ref["crop"].height >= 60000
-        if reste and nette and fam != "accessoire":
-            sim = np.array([float(o["e"] @ ref["e"]) - np.linalg.norm(o["c"] - ref["c"]) / 120 for o in reste])
-            idx = [i for i in np.argsort(-sim) if sim[i] >= SIM_MIN and reste[i]["sid"] != ref["sid"]][:CANDIDATS]
+        # seule une photo nette sert de référence (les petites découpes peuvent rejoindre une pièce, pas en créer une) ;
+        # les accessoires ne sont pas regroupés pour l'instant
+        if reste and nette(ref) and fam != "accessoire":
+            sim = np.array([float(u["e"] @ ref["e"]) - np.linalg.norm(u["c"] - ref["c"]) / 120 for u in reste])
+            idx = [i for i in np.argsort(-sim) if sim[i] >= SIM_MIN and not (reste[i]["sids"] & ref["sids"])][:CANDIDATS]
             if idx:
-                for o in memes(ref, [reste[i] for i in idx], fam):
-                    if o["sid"] not in {g["sid"] for g in groupe}: groupe.append(o)   # une pièce n'apparaît qu'une fois par séance
-                reste = [o for o in reste if o not in groupe]
-        groupes.append({"fam": fam, "obs": groupe})
-    print(f"  {fam} : {len(liste)} photos → {len(groupes)} pièces", flush=True)
+                pris = set(ref["sids"])
+                for u in memes(ref, [reste[i] for i in idx], fam):
+                    if not (u["sids"] & pris): groupe.append(u); pris |= u["sids"]   # une pièce n'apparaît qu'une fois par séance
+                reste = [u for u in reste if u not in groupe]
+        groupes.append(fusion(groupe))
     return groupes
 
+def fusion(unites):
+    """Regroupe des unités en une seule, représentée par sa meilleure photo."""
+    O = [o for u in unites for o in u["obs"]]; best = max(O, key=lambda o: o["q"])
+    e = np.mean([o["e"] for o in O], 0)
+    return {"id": "g:" + ",".join(sorted(o["id"] for o in O)), "obs": O, "sids": {o["sid"] for o in O}, "fam": best["fam"],
+            "crop": best["crop"], "q": best["q"], "e": e / (np.linalg.norm(e) + 1e-9), "c": np.median([o["c"] for o in O], 0)}
+
 familles = {}
-for o in obs: familles.setdefault(o["fam"], []).append(o)
+for o in obs: familles.setdefault(o["fam"], []).append(fusion([o]))
 print(len(obs), "photos de pièces à regrouper", flush=True)
-with ThreadPoolExecutor(6) as ex:
-    pieces = [g for gs in ex.map(lambda kv: regrouper(*kv), familles.items()) for g in gs]
+for passage in (1, 2):      # 2e passage : on compare les pièces formées entre elles, pour rattraper les photos d'une même pièce restées séparées
+    with ThreadPoolExecutor(6) as ex:
+        res = dict(zip(familles, ex.map(lambda kv: regrouper(*kv), familles.items())))
+    for fam in familles: print(f"  passage {passage} · {fam} : {len(familles[fam])} → {len(res[fam])} pièces", flush=True)
+    familles = res
+json.dump(CACHE, open(CACHE_F, "w"))
+pieces = [{"fam": g["fam"], "obs": g["obs"]} for gs in familles.values() for g in gs]
 
 if TEST:
     print(open(os.path.join(R, "data", "regroupement_log.jsonl")).read()); raise SystemExit

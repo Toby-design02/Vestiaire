@@ -22,7 +22,25 @@ def assez_visible(p):
         except Exception: pass
     return False
 
+def verifier(p, desc, cli_a):
+    """Haiku regarde les photos qui seront envoyées : suffisent-elles pour une photo produit fidèle ? (≈ 0,0004 $)"""
+    contenu = []
+    for d in p["decoupes"]:
+        contenu.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                                    "data": base64.b64encode(open(os.path.join(R, d), "rb").read()).decode()}})
+    contenu.append({"type": "text", "text": prompt("textes/T3_verification.md", description=desc)})
+    m = cli_a.messages.create(model=CFG["modeles"]["arbitrage"], max_tokens=1500, extra_body={"output_config": {"effort": "low"}},
+                              messages=[{"role": "user", "content": contenu}])
+    M = CFG["modeles"]["arbitrage"]
+    charge((m.usage.input_tokens * TARIFS[M]["in"] + m.usage.output_tokens * TARIFS[M]["out"]) / 1e6, f"vérification {p['id']}")
+    t = "".join(x.text for x in m.content if x.type == "text")
+    try: r = json.loads(t[t.find("{"): t.rfind("}") + 1])
+    except Exception: return False, "réponse illisible"
+    return r.get("suffisant") is True, r.get("manque")
+
 def go(limit):
+    import anthropic
+    cli_a = anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
     cli = OpenAI(api_key=env()["OPENAI_API_KEY"])
     todo = [p for p in PIECES if p["ports"] >= CFG["ports_min_pour_generation"] and p["decoupes"] and not p["photo_produit"] and p.get("generable") and assez_visible(p)]
     if limit:   # mini-test : complète avec des pièces vues une seule fois, pour juger la qualité tout de suite
@@ -34,6 +52,12 @@ def go(limit):
         guard(TARIFS[MODEL][q] + 0.004, f"photo produit {p['id']}")       # + marge pour les images d'entrée
         desc = ", ".join(x for x in [p.get("type"), " / ".join(p.get("couleurs") or []), p.get("motif"), p.get("matiere"),
                                        p.get("coupe_col"), p.get("details_face")] if x)
+        if not p.get("verifie"):
+            ok, manque = verifier(p, desc, cli_a)
+            if not ok:
+                p["generable"] = False; p["photos_insuffisantes"] = f"vérification : {manque or 'photos insuffisantes'}"
+                json.dump(PIECES, open(PJ, "w"), ensure_ascii=False, indent=1); print("écartée", p["id"], p.get("type"), "→", manque); continue
+            p["verifie"] = True
         txt = prompt("images/P1_photo_produit.md", categorie=p.get("type") or p.get("rayon"), description=desc,
                      details_dos=p.get("details_dos"), logos_textes=p.get("logos_textes"))
         files = [open(os.path.join(R, d), "rb") for d in p["decoupes"]]
