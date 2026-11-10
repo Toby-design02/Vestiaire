@@ -2,7 +2,7 @@
   "dossier_photos": "../../vestiaire-photos",
   "date_min": "2023-01-01",
   "seance_ecart_heures": 3,
-  "vues_max_par_seance": 4,
+  "vues_max_par_seance": 6,
   "recadrage_cote_long_px": 1280,
   "modeles": {
     "lecture": "claude-haiku-5-5",
