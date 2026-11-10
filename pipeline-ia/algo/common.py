@@ -66,3 +66,12 @@ def charge(usd, what):
 def guard(next_cost, what):
     if spent() + next_cost > CFG["budget_max_usd"]:
         raise SystemExit(f"Plafond atteint ({spent():.3f} $ dépensés, {CFG['budget_max_usd']} $ max) : arrêt avant « {what} ».")
+
+# Accessoires de mode : seuls ceux-là entrent dans le dressing (pas les casques audio, serviettes, masques, déguisements…)
+ACCESSOIRES_MODE = ("casquette", "bonnet", "chapeau", "bob", "écharpe", "echarpe", "foulard", "snood", "tour de cou", "gants",
+                    "ceinture", "lunettes", "sac", "sacoche", "cabas", "pochette", "cravate", "nœud", "noeud", "collier", "chaîne",
+                    "chaine", "bracelet", "montre", "bague", "boucle", "pendentif", "portefeuille")
+def est_mode(p):
+    if (p.get("rayon") or "").lower() != "accessoire": return True
+    t = (p.get("type") or "").lower()
+    return any(k in t for k in ACCESSOIRES_MODE)

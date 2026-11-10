@@ -9,7 +9,7 @@ from datetime import datetime
 import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, D, O
+from common import R, D, O, est_mode
 
 PIECES = json.load(open(os.path.join(D, "pieces.json")))
 SESS = {s["id"]: s for s in json.load(open(os.path.join(D, "sessions.json")))}
@@ -38,7 +38,7 @@ def txt(v): return v if isinstance(v, str) and v.strip() and v.strip().lower() n
 
 items, wears, used = [], [], set()
 for p in PIECES:
-    if p.get("statut") == "pas_a_moi": continue
+    if p.get("statut") in ("pas_a_moi", "fusionnee") or not est_mode(p): continue
     image = None
     if p.get("photo_produit") and os.path.exists(os.path.join(R, p["photo_produit"])):
         image = p["id"] + ".png"; shutil.copy(os.path.join(R, p["photo_produit"]), os.path.join(IMG, image))

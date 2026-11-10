@@ -13,6 +13,6 @@
   "image_qualite_si_logo": "medium",
   "image_taille": "1024x1024",
   "ports_min_pour_generation": 1,
-  "budget_max_usd": 8.0,
+  "budget_max_usd": 9.0,
   "mini_test_pieces": 10
 }

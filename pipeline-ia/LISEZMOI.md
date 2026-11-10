@@ -12,6 +12,7 @@ Reconstitue le vestiaire à partir des photos où l'utilisateur apparaît, puis 
 | 2. Lecture des tenues → fiche JSON de chaque pièce | `algo/lecture.py` | Claude Haiku 5.5, API Batch | ≈ 0,05 à 0,15 $ |
 | 3. Regroupement des photos de chaque pièce (empreinte visuelle MobileNet + couleur réelle en local, puis Haiku confirme sur une planche de 16 photos, prompt T2), choix des meilleures vues (pièce entière, logo lisible, angles variés) ; une pièce sans photo suffisante est notée « photos insuffisantes » et n'est pas générée | `algo/dedoublonnage.py` | code, et Haiku seulement si ambigu | ≈ 0,02 $ |
 | 4. Photo produit de chaque pièce, après vérification par Haiku que les photos suffisent (prompt T3) | `algo/generation.py` | Haiku + gpt-image-1-mini + prompt P1 | ≈ 0,005 à 0,011 $ par pièce |
+| 4 bis. Fusion des derniers doublons sur les photos produit (planches photo produit + vraie photo, prompt T6) ; accessoires hors mode (casques audio, serviettes…) écartés | `algo/fusion_finale.py` | Haiku | ≈ 0,01 $ |
 | 5. Export au format de l'app (`Item`, `Session`, `WearEvent`) | `algo/export_app.py` | code | 0 |
 
 Seuls les recadrages basse résolution de l'utilisateur (étape 1b) sont envoyés aux API, jamais les photos brutes. Le plafond de dépense est dans `config.json` (`budget_max_usd`, 1 $ par défaut) : les scripts s'arrêtent avant de le dépasser. Le détail est dans `data/depenses.json`.

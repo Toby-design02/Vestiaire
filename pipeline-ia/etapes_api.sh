@@ -11,6 +11,7 @@ if [ "$MODE" = "mini" ]; then python3 algo/lecture.py soumettre 20; else python3
 python3 algo/lecture.py recuperer
 python3 algo/dedoublonnage.py
 python3 algo/generation.py "$MODE"
+python3 algo/fusion_finale.py
 python3 algo/export_app.py
 echo
 echo "Dépense totale :"; python3 -c "import json;d=json.load(open('data/depenses.json'));print(round(d['total_usd'],4),'\$')"

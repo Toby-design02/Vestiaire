@@ -4,7 +4,7 @@ Usage : python3 algo/generation.py mini     (mini-test sur config.mini_test_piec
         python3 algo/generation.py tout"""
 import os, sys, json, base64
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, env, prompt, charge, guard, TARIFS, D, O, tarif_image
+from common import R, CFG, env, prompt, charge, guard, TARIFS, D, O, tarif_image, est_mode
 from openai import OpenAI
 
 PJ = os.path.join(D, "pieces.json")
@@ -46,7 +46,8 @@ def go(limit):
     import anthropic
     cli_a = anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
     cli = OpenAI(api_key=env()["OPENAI_API_KEY"])
-    todo = [p for p in PIECES if p["ports"] >= CFG["ports_min_pour_generation"] and p["decoupes"] and not p["photo_produit"] and p.get("generable") and assez_visible(p)]
+    todo = [p for p in PIECES if p["ports"] >= CFG["ports_min_pour_generation"] and p["decoupes"] and not p["photo_produit"] and p.get("generable") and assez_visible(p) and est_mode(p)]
+    todo.sort(key=lambda p: (p["rayon"] == "accessoire", -p["ports"]))     # vêtements d'abord, les plus portés en premier
     if limit:   # mini-test : complète avec des pièces vues une seule fois, pour juger la qualité tout de suite
         todo += [p for p in PIECES if p not in todo and p["decoupes"] and not p["photo_produit"] and p["rayon"] != "accessoire" and p.get("generable") and assez_visible(p)]
         todo = todo[:limit]
