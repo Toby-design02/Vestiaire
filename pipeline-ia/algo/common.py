@@ -75,3 +75,9 @@ def est_mode(p):
     if (p.get("rayon") or "").lower() != "accessoire": return True
     t = (p.get("type") or "").lower()
     return any(k in t for k in ACCESSOIRES_MODE)
+
+# Pull ou haut porté noué sur les épaules / autour du cou : la photo produit le dessinerait noué, comme une écharpe.
+NOUE = re.compile(r"\bnou[ée]|drap[ée]|port[ée]e? sur les [ée]paules|autour (du cou|des [ée]paules)", re.I)
+def porte_noue(p):
+    if (p.get("rayon") or "").lower() == "accessoire": return False
+    return bool(NOUE.search(" ".join(str(p.get(k) or "") for k in ("type", "coupe_col", "details_face"))))

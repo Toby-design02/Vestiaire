@@ -8,7 +8,7 @@ import os, sys, json, base64, io
 import numpy as np, cv2
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, env, charge, guard, TARIFS, D, O as SORTIES
+from common import R, CFG, env, charge, guard, TARIFS, D, O as SORTIES, porte_noue
 
 SESS = {s["id"]: s for s in json.load(open(os.path.join(D, "sessions.json")))}
 LECT = json.load(open(os.path.join(D, "lecture.json")))
@@ -286,6 +286,10 @@ for i, it in enumerate(sorted(pieces, key=lambda it: -len({o["sid"] for o in it[
     entieres = [o for o in O if o["p"].get("visible") == "entier" and utilisable(o)]
     # photos envoyées au générateur : les meilleures, en cherchant le plus d'angles différents (face, profil, dos)
     bonnes = [o for o in O if utilisable(o) and not (logo_ok and o["p"].get("logo_complet") is False)]   # pas de logo coupé s'il existe en entier
+    noue_seulement = bool(bonnes) and all(porte_noue(o["p"]) for o in bonnes)
+    if not noue_seulement:
+        bonnes = [o for o in bonnes if not porte_noue(o["p"])]          # pull noué sur les épaules : jamais envoyé au générateur
+        O = [o for o in O if not porte_noue(o["p"])] + [o for o in O if porte_noue(o["p"])]; ps = [o["p"] for o in O]
     choix = []
     for o in bonnes:                                     # 1er passage : un angle différent à chaque fois
         if len(choix) < 3 and o["angle"] not in {c["angle"] for c in choix}: choix.append(o)
@@ -296,7 +300,8 @@ for i, it in enumerate(sorted(pieces, key=lambda it: -len({o["sid"] for o in it[
         if o["crop"] is None: continue
         path = os.path.join(OUTD, f"p{i:03d}_{k}.jpg"); o["crop"].save(path, quality=90); vues.append(os.path.relpath(path, R))
     # génération seulement sans doute évident
-    if not entieres: raison = "aucune photo où la pièce est entière"
+    if noue_seulement: raison = "porté noué sur les épaules sur toutes les photos"
+    elif not entieres: raison = "aucune photo où la pièce est entière"
     elif a_logo and not logo_ok: raison = "logo ou texte toujours partiellement caché"
     else: raison = None
     out.append({
