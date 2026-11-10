@@ -7,11 +7,11 @@ from datetime import datetime
 from collections import Counter
 from PIL import Image, ImageOps
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, photos_dir, galerie
+from common import R, CFG, photos_dir, galerie, D, O
 
 PH = photos_dir()
 GAL = galerie()
-CROPS = os.path.join(R, "out", "crops"); os.makedirs(CROPS, exist_ok=True)
+CROPS = os.path.join(O, "crops"); os.makedirs(CROPS, exist_ok=True)
 
 def cos(a, b): return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
 
@@ -25,6 +25,7 @@ for l in open(os.path.join(R, "data", "detections.jsonl")):
     seen.add(k)
     try: r["t"] = datetime.strptime(r["dt"][:19], "%Y:%m:%d %H:%M:%S")
     except ValueError: continue
+    if not (CFG.get("seances_depuis", "0") <= r["dt"][:10] < CFG.get("seances_jusqua", "9")): continue   # fenêtre d'un essai
     rows.append(r)
 
 # 1. Visage de référence. Avec selfie.jpg (comme l'onboarding de l'app) : le visage du selfie,
@@ -135,7 +136,7 @@ for si, S in enumerate(sess):
         entry["vues"].append({"photo": r["f"], "sim": (r["me"] or {}).get("sim"), "boite": [round(x, 3) for x in b], "fb": (r["me"] or {}).get("fb"), "id_photo": GAL.get(r["f"], {}).get("id"), "angle": ang, "recadrage": os.path.relpath(cp, R)})
     out.append(entry)
 
-json.dump(out, open(os.path.join(R, "data", "sessions.json"), "w"), ensure_ascii=False, indent=1)
+json.dump(out, open(os.path.join(D, "sessions.json"), "w"), ensure_ascii=False, indent=1)
 print("photos", len(rows), "| avec l'utilisateur", sum(1 for r in rows if r["me"]), "| séances", len(out),
       "| vues", sum(len(e["vues"]) for e in out), "| séances avec une vue sans visage", n_sans)
 print(Counter(v["angle"] for e in out for v in e["vues"]))

@@ -8,11 +8,11 @@ import os, sys, json, base64, io
 import numpy as np, cv2
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, env, charge, guard, TARIFS
+from common import R, CFG, env, charge, guard, TARIFS, D, O as SORTIES
 
-SESS = {s["id"]: s for s in json.load(open(os.path.join(R, "data", "sessions.json")))}
-LECT = json.load(open(os.path.join(R, "data", "lecture.json")))
-OUTD = os.path.join(R, "out", "pieces"); os.makedirs(OUTD, exist_ok=True)
+SESS = {s["id"]: s for s in json.load(open(os.path.join(D, "sessions.json")))}
+LECT = json.load(open(os.path.join(D, "lecture.json")))
+OUTD = os.path.join(SORTIES, "pieces"); os.makedirs(OUTD, exist_ok=True)
 MODEL = CFG["modeles"]["arbitrage"]
 CANDIDATS = 15               # photos montrées à Haiku à côté de la référence
 SIM_MIN = 0.35               # en dessous, aucune photo n'est assez proche : pièce seule, sans appel
@@ -71,7 +71,7 @@ import threading
 _cli, n_planches, _verrou = None, 0, threading.Lock()
 ESTIMER = "--estimer" in sys.argv
 TEST = int(sys.argv[sys.argv.index("--test") + 1]) if "--test" in sys.argv else 0   # --test N : N planches seulement, enregistrées dans data/
-LOG = open(os.path.join(R, "data", "regroupement_log.jsonl"), "w")
+LOG = open(os.path.join(D, "regroupement_log.jsonl"), "w")
 import re
 
 def planche(liste):
@@ -86,7 +86,7 @@ def planche_img(liste):
         im.paste(c, (X + 3, Y + 3)); d.rectangle([X, Y, X + 44, Y + 34], fill="white"); d.text((X + 4, Y + 1), str(k + 1), fill="red", font=f)
     return im
 
-CACHE_F = os.path.join(R, "data", "cache_planches.json")
+CACHE_F = os.path.join(D, "cache_planches.json")
 CACHE = json.load(open(CACHE_F)) if os.path.exists(CACHE_F) else {}   # réponses déjà payées : une relance ne les repaie pas
 
 def memes(ref, cands, fam):
@@ -121,7 +121,7 @@ def memes(ref, cands, fam):
         CACHE[cle] = [c["id"] for c in res]
         if n_planches % 20 == 0: json.dump(CACHE, open(CACHE_F, "w"))
         LOG.write(json.dumps({"ref": ref["id"], "fam": fam, "reponse": t[:300], "stop": m.stop_reason, "tokens_sortie": m.usage.output_tokens}, ensure_ascii=False) + "\n"); LOG.flush()
-        if TEST: planche_img([ref] + cands).save(os.path.join(R, "data", f"planche_test_{n_planches}.jpg"), quality=80)
+        if TEST: planche_img([ref] + cands).save(os.path.join(D, f"planche_test_{n_planches}.jpg"), quality=80)
     return res
 
 def nette(u): return min(u["crop"].size) >= 160 and u["crop"].width * u["crop"].height >= 60000
@@ -164,7 +164,7 @@ json.dump(CACHE, open(CACHE_F, "w"))
 pieces = [{"fam": g["fam"], "obs": g["obs"]} for gs in familles.values() for g in gs]
 
 if TEST:
-    print(open(os.path.join(R, "data", "regroupement_log.jsonl")).read()); raise SystemExit
+    print(open(os.path.join(D, "regroupement_log.jsonl")).read()); raise SystemExit
 if ESTIMER:
     print(n_planches, "planches Haiku au maximum, soit ≈", round(n_planches * 0.00035, 3), "$"); raise SystemExit
 
@@ -211,6 +211,6 @@ for i, it in enumerate(sorted(pieces, key=lambda it: -len({o["sid"] for o in it[
         "angles": sorted({o["angle"] for o in O if o["angle"]}),
         "premiere_fois": dates[0], "derniere_fois": dates[-1], "decoupes": vues,
         "generable": raison is None, "photos_insuffisantes": raison, "photo_produit": None})
-json.dump(out, open(os.path.join(R, "data", "pieces.json"), "w"), ensure_ascii=False, indent=1)
+json.dump(out, open(os.path.join(D, "pieces.json"), "w"), ensure_ascii=False, indent=1)
 print(len(obs), "observations →", len(out), "pièces |", sum(1 for p in out if p["ports"] >= CFG["ports_min_pour_generation"]),
       "portées au moins", CFG["ports_min_pour_generation"], "fois |", sum(p["generable"] for p in out), "avec des photos suffisantes |", n_planches, "planches Haiku")

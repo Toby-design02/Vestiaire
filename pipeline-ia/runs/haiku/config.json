@@ -1,0 +1,2 @@
+{"seances_depuis": "2025:10:01", "seances_jusqua": "2026:03:01", "recadrage_cote_long_px": 1280, "vues_max_par_seance": 4,
+ "modeles": {"lecture": "claude-haiku-5-5", "arbitrage": "claude-haiku-5-5"}, "budget_max_usd": 0.3}

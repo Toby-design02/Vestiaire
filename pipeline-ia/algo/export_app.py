@@ -9,11 +9,11 @@ from datetime import datetime
 import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R
+from common import R, D, O
 
-PIECES = json.load(open(os.path.join(R, "data", "pieces.json")))
-SESS = {s["id"]: s for s in json.load(open(os.path.join(R, "data", "sessions.json")))}
-OUT = os.path.join(R, "out", "app"); IMG = os.path.join(OUT, "images")
+PIECES = json.load(open(os.path.join(D, "pieces.json")))
+SESS = {s["id"]: s for s in json.load(open(os.path.join(D, "sessions.json")))}
+OUT = os.path.join(O, "app"); IMG = os.path.join(OUT, "images")
 shutil.rmtree(OUT, ignore_errors=True); os.makedirs(IMG)
 
 NS = uuid.UUID("6f1c2e1a-5b7d-4c1e-9a43-7e0d3c2b9f10")       # identifiants stables d'un export à l'autre

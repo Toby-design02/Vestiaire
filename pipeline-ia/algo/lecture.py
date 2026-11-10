@@ -3,11 +3,11 @@ Usage :  python3 algo/lecture.py soumettre [N]   (N premières séances, pour un
          python3 algo/lecture.py recuperer"""
 import os, sys, json, base64, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, env, prompt, charge, guard, TARIFS
+from common import R, CFG, env, prompt, charge, guard, TARIFS, D, O
 import anthropic
 
-SESS = json.load(open(os.path.join(R, "data", "sessions.json")))
-STATE = os.path.join(R, "data", "lecture_batch.json")
+SESS = json.load(open(os.path.join(D, "sessions.json")))
+STATE = os.path.join(D, "lecture_batch.json")
 MODEL = CFG["modeles"]["lecture"]
 
 def request(s):
@@ -33,7 +33,7 @@ def lire_json(txt):
 
 def soumettre(n):
     todo = SESS[:n] if n else SESS
-    est = len(todo) * (1500 * TARIFS[MODEL]["in"] + 350 * TARIFS[MODEL]["out"]) / 1e6 / 2
+    est = len(todo) * ((CFG["recadrage_cote_long_px"] / 768) ** 2 * 4500 * TARIFS[MODEL]["in"] + 1200 * TARIFS[MODEL]["out"]) / 1e6 / 2
     guard(est, f"lecture de {len(todo)} séances (≈ {est:.3f} $)")
     c = anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
     b = c.messages.batches.create(requests=[request(s) for s in todo])
@@ -56,7 +56,7 @@ def recuperer():
     cost = (tin * TARIFS[MODEL]["in"] + tout * TARIFS[MODEL]["out"]) / 1e6 / 2
     if not st.get("facture"):                            # relancer recuperer ne compte pas deux fois la dépense
         charge(cost, f"lecture Haiku batch ({tin} tokens in, {tout} out)"); st["facture"] = True; json.dump(st, open(STATE, "w"))
-    json.dump(out, open(os.path.join(R, "data", "lecture.json"), "w"), ensure_ascii=False, indent=1)
+    json.dump(out, open(os.path.join(D, "lecture.json"), "w"), ensure_ascii=False, indent=1)
     err = [k for k, v in out.items() if isinstance(v, dict)]
     print(len(out), "séances lues,", len(err), "illisibles, coût réel", round(cost, 4), "$")
     for k in err[:5]: print("  ", k, out[k]["erreur"][:160])

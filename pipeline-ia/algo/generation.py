@@ -4,12 +4,12 @@ Usage : python3 algo/generation.py mini     (mini-test sur config.mini_test_piec
         python3 algo/generation.py tout"""
 import os, sys, json, base64
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import R, CFG, env, prompt, charge, guard, TARIFS
+from common import R, CFG, env, prompt, charge, guard, TARIFS, D, O, tarif_image
 from openai import OpenAI
 
-PJ = os.path.join(R, "data", "pieces.json")
+PJ = os.path.join(D, "pieces.json")
 PIECES = json.load(open(PJ))
-OUTD = os.path.join(R, "out", "produits"); os.makedirs(OUTD, exist_ok=True)
+OUTD = os.path.join(O, "produits"); os.makedirs(OUTD, exist_ok=True)
 MODEL = CFG["modeles"]["image"]
 
 from PIL import Image
@@ -53,7 +53,7 @@ def go(limit):
     print(len(todo), "pièces à générer")
     for p in todo:
         q = CFG["image_qualite_si_logo"] if p.get("logos_textes") else CFG["image_qualite"]
-        guard(TARIFS[MODEL][q] + 0.004, f"photo produit {p['id']}")       # + marge pour les images d'entrée
+        guard(tarif_image(MODEL, q) + 0.004, f"photo produit {p['id']}")       # + marge pour les images d'entrée
         desc = ", ".join(x for x in [p.get("type"), " / ".join(p.get("couleurs") or []), p.get("motif"), p.get("matiere"),
                                        p.get("coupe_col"), p.get("details_face")] if x)
         if not p.get("verifie"):
@@ -72,7 +72,7 @@ def go(limit):
         path = os.path.join(OUTD, p["id"] + ".png")
         open(path, "wb").write(base64.b64decode(r.data[0].b64_json))
         tin = getattr(getattr(r, "usage", None), "input_tokens", 0) or 0
-        charge(TARIFS[MODEL][q] + tin * TARIFS[MODEL]["in_per_mtok"] / 1e6, f"photo produit {p['id']} ({q})")
+        charge(tarif_image(MODEL, q) + tin * TARIFS.get(MODEL, {}).get("in_per_mtok", 10) / 1e6, f"photo produit {p['id']} ({q})")
         p["photo_produit"] = os.path.relpath(path, R)
         json.dump(PIECES, open(PJ, "w"), ensure_ascii=False, indent=1)       # sauvegarde après chaque image
         print("ok", p["id"], p.get("type"), q)

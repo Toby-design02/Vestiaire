@@ -2,13 +2,27 @@
 import os, json, re
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = json.load(open(os.path.join(R, "config.json")))
-LEDGER = os.path.join(R, "data", "depenses.json")
-os.makedirs(os.path.join(R, "data"), exist_ok=True)
+# Essais : RUN=nom python3 algo/… travaille dans runs/nom/ (données, sorties, dépenses à part) avec runs/nom/config.json
+# par-dessus config.json. La photothèque et les détections (data/galerie, data/detections.jsonl) restent communes.
+RUN = os.environ.get("RUN")
+BASE = os.path.join(R, "runs", RUN) if RUN else R
+if RUN and os.path.exists(os.path.join(BASE, "config.json")):
+    for k, v in json.load(open(os.path.join(BASE, "config.json"))).items():
+        CFG[k] = {**CFG[k], **v} if isinstance(v, dict) and isinstance(CFG.get(k), dict) else v
+D = os.path.join(BASE, "data"); O = os.path.join(BASE, "out")      # données et sorties de l'essai
+os.makedirs(D, exist_ok=True)
+LEDGER = os.path.join(D, "depenses.json")
 
 # Tarifs en $ (vérifiés le 26 oct. 2026) : Haiku 5.5 par million de tokens (l'API Batch divise par 2) ;
 # gpt-image-1-mini par image 1024x1024, plus les images d'entrée facturées en tokens.
+# Ajout du 9 nov. 2026 : Sonnet 5.5 (tarifs Anthropic) ; gpt-image-2 (comparatif developersdigest.tech, non vérifié sur le site
+# d'OpenAI) ; gpt-image-2.5-* facturés au token, prix inconnu : estimation prudente de 0,25 $ l'image.
 TARIFS = {"claude-haiku-5-5": {"in": 0.10, "out": 0.50},
-          "gpt-image-1-mini": {"low": 0.005, "medium": 0.011, "high": 0.036, "in_per_mtok": 2.5}}
+          "claude-sonnet-5-5": {"in": 2.0, "out": 10.0},
+          "gpt-image-1-mini": {"low": 0.005, "medium": 0.011, "high": 0.036, "in_per_mtok": 2.5},
+          "gpt-image-2": {"low": 0.006, "medium": 0.053, "high": 0.211, "in_per_mtok": 10.0}}
+def tarif_image(model, q):
+    return TARIFS[model][q] if model in TARIFS else 0.25
 
 GALERIE_INDEX = os.path.join(R, "data", "galerie.jsonl")
 
