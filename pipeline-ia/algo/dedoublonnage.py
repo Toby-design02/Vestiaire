@@ -160,6 +160,103 @@ for passage in (1, 2):      # 2e passage : on compare les pièces formées entre
         res = dict(zip(familles, ex.map(lambda kv: regrouper(*kv), familles.items())))
     for fam in familles: print(f"  passage {passage} · {fam} : {len(familles[fam])} → {len(res[fam])} pièces", flush=True)
     familles = res
+
+# 3e et 4e passages, inspirés du premier test « à l'œil » : une vue d'ensemble plutôt que des comparaisons locales.
+def demander(cle, img, txt):
+    """Appel au modèle d'arbitrage avec une planche ; réponses gardées dans le cache (une relance ne repaie pas)."""
+    global _cli, n_planches
+    if cle in CACHE: return CACHE[cle]
+    if ESTIMER:
+        with _verrou: n_planches += 1
+        return ""
+    import anthropic
+    with _verrou:
+        guard(0.001, "regroupement des pièces"); _cli = _cli or anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
+    b = io.BytesIO(); img.save(b, "JPEG", quality=82)
+    for essai in range(3):
+        try:
+            m = _cli.messages.create(model=MODEL, max_tokens=2000, extra_body={"output_config": {"effort": "low"}}, messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(b.getvalue()).decode()}},
+                {"type": "text", "text": txt}]}])
+            break
+        except Exception as e: err = e
+    else:
+        print("appel impossible :", str(err)[:120]); return ""
+    t = "".join(x.text for x in m.content if x.type == "text")
+    with _verrou:
+        n_planches += 1; CACHE[cle] = t
+        charge((m.usage.input_tokens * TARIFS[MODEL]["in"] + m.usage.output_tokens * TARIFS[MODEL]["out"]) / 1e6, "regroupement (planche)")
+        LOG.write(json.dumps({"cle": cle[:60], "reponse": t[:300]}, ensure_ascii=False) + "\n"); LOG.flush()
+    return t
+
+def grille(liste, cols, T=200):
+    rows = (len(liste) + cols - 1) // cols
+    im = Image.new("RGB", (cols * T, rows * T), "white"); d = ImageDraw.Draw(im)
+    try: f = ImageFont.load_default(size=30)
+    except Exception: f = ImageFont.load_default()
+    for k, u in enumerate(liste):
+        c = u["crop"].copy(); c.thumbnail((T - 6, T - 6)); X, Y = (k % cols) * T, (k // cols) * T
+        im.paste(c, (X + 3, Y + 3)); d.rectangle([X, Y, X + 44, Y + 34], fill="white"); d.text((X + 4, Y + 1), str(k + 1), fill="red", font=f)
+    return im
+
+def lire(t, cle):
+    try: return json.loads(t[t.find("{"): t.rfind("}") + 1]).get(cle)
+    except Exception: return None
+
+def sim(a, b): return float(a["e"] @ b["e"]) - np.linalg.norm(a["c"] - b["c"]) / 120
+
+def catalogue(fam, groupes):
+    """3e passage : le modèle voit les pièces de la famille par planches de 24 (ordonnées pour que les pièces proches
+    soient sur la même planche, avec recouvrement) et désigne les doublons."""
+    refs = [g for g in groupes if nette(g)]
+    if fam == "accessoire" or len(refs) < 2: return groupes
+    ordre, reste = [refs[0]], refs[1:]
+    while reste:                                         # chaîne : chaque pièce suivie de sa plus proche voisine
+        j = max(range(len(reste)), key=lambda i: sim(ordre[-1], reste[i])); ordre.append(reste.pop(j))
+    parent = {id(g): g for g in groupes}
+    def racine(g):
+        while parent[id(g)] is not g: g = parent[id(g)]
+        return g
+    membres = {id(g): [g] for g in groupes}
+    for debut in range(0, max(1, len(ordre) - 8), 16):
+        lot = ordre[debut: debut + 24]
+        if len(lot) < 2: break
+        t = demander("T4|" + ",".join(g["id"] for g in lot), grille(lot, 6), prompt("textes/T4_catalogue.md", n=len(lot), famille=fam))
+        for grp in lire(t, "doublons") or []:
+            gs = [lot[n - 1] for n in grp if isinstance(n, int) and 1 <= n <= len(lot)]
+            for g in gs[1:]:
+                a, b = racine(gs[0]), racine(g)
+                if a is b: continue
+                sa = set().union(*[m["sids"] for m in membres[id(a)]]); sb = set().union(*[m["sids"] for m in membres[id(b)]])
+                if sa & sb: continue                     # une pièce n'apparaît qu'une fois par séance
+                parent[id(b)] = a; membres[id(a)] += membres.pop(id(b))
+    return [fusion(ms) for ms in membres.values()]
+
+def rattacher(fam, groupes):
+    """4e passage : chaque photo partielle restée seule est comparée aux 8 pièces connues les plus proches."""
+    if fam == "accessoire": return groupes
+    cats = [g for g in groupes if nette(g)]; seuls = [g for g in groupes if not nette(g) and len(g["obs"]) == 1]
+    def un(g):
+        cand = sorted([c for c in cats if not (c["sids"] & g["sids"])], key=lambda c: -sim(g, c))[:8]
+        if not cand: return g, None
+        t = demander("T5|" + g["id"] + "|" + ",".join(c["id"] for c in cand), grille([g] + cand, 3),
+                     prompt("textes/T5_rattachement.md", n=len(cand) + 1, famille=fam))
+        n = lire(t, "piece")
+        return g, (cand[n - 2] if isinstance(n, int) and 2 <= n <= len(cand) + 1 else None)
+    with ThreadPoolExecutor(6) as ex: res = list(ex.map(un, seuls))
+    ajouts = {}
+    for g, c in res:
+        if c is None: continue
+        pris = set(c["sids"]).union(*[x["sids"] for x in ajouts.get(id(c), [])])
+        if not (g["sids"] & pris): ajouts.setdefault(id(c), []).append(g)
+    rattaches = {id(g) for gs in ajouts.values() for g in gs}
+    return [fusion([g] + ajouts[id(g)]) if id(g) in ajouts else g for g in groupes if id(g) not in rattaches]
+
+for nom, f in (("catalogue", catalogue), ("rattachement", rattacher)):
+    with ThreadPoolExecutor(6) as ex:
+        res = dict(zip(familles, ex.map(lambda kv: f(*kv), familles.items())))
+    for fam in familles: print(f"  {nom} · {fam} : {len(familles[fam])} → {len(res[fam])} pièces", flush=True)
+    familles = res
 json.dump(CACHE, open(CACHE_F, "w"))
 pieces = [{"fam": g["fam"], "obs": g["obs"]} for gs in familles.values() for g in gs]
 
