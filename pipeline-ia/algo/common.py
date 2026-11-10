@@ -20,7 +20,10 @@ LEDGER = os.path.join(D, "depenses.json")
 TARIFS = {"claude-haiku-5-5": {"in": 0.10, "out": 0.50},
           "claude-sonnet-5-5": {"in": 2.0, "out": 10.0},
           "gpt-image-1-mini": {"low": 0.005, "medium": 0.011, "high": 0.036, "in_per_mtok": 2.5},
-          "gpt-image-2": {"low": 0.006, "medium": 0.053, "high": 0.211, "in_per_mtok": 10.0}}
+          "gpt-image-2": {"low": 0.006, "medium": 0.053, "high": 0.211, "in_per_mtok": 10.0},
+          # constaté sur le tableau de bord OpenAI (9 nov. 2026) : 0,058 $ pour 4 images en qualité moyenne, entrées comprises ;
+          # compté prudemment à 0,03 $ l'image
+          "gpt-image-2.5-sunburst": {"low": 0.015, "medium": 0.03, "high": 0.1, "in_per_mtok": 0.0}}
 def tarif_image(model, q):
     return TARIFS[model][q] if model in TARIFS else 0.25
 
