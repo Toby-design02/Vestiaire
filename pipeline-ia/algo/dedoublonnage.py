@@ -165,6 +165,10 @@ for passage in (1, 2):      # 2e passage : on compare les pièces formées entre
 def demander(cle, img, txt):
     """Appel au modèle d'arbitrage avec une planche ; réponses gardées dans le cache (une relance ne repaie pas)."""
     global _cli, n_planches
+    if "--planches" in sys.argv:                         # contrôle : enregistre chaque planche avec la réponse du modèle
+        os.makedirs(os.path.join(D, "planches"), exist_ok=True)
+        rep = (CACHE.get(cle) or "")[:80].replace("/", " ").replace('"', "").replace(":", "")
+        img.save(os.path.join(D, "planches", f"{cle[:2]}_{abs(hash(cle)) % 10**6}_{rep}.jpg"), quality=80)
     if cle in CACHE: return CACHE[cle]
     if ESTIMER:
         with _verrou: n_planches += 1
