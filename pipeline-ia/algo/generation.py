@@ -39,6 +39,10 @@ def verifier(p, desc, cli_a):
     return r.get("suffisant") is True, r.get("manque")
 
 def go(limit):
+    if "--reverifier" in sys.argv:          # après un changement du prompt T3 : on redonne leur chance aux pièces écartées
+        for p in PIECES:
+            if (p.get("photos_insuffisantes") or "").startswith("vérification"):
+                p["generable"], p["photos_insuffisantes"], p["verifie"] = True, None, False
     import anthropic
     cli_a = anthropic.Anthropic(api_key=env()["ANTHROPIC_API_KEY"])
     cli = OpenAI(api_key=env()["OPENAI_API_KEY"])
