@@ -10,7 +10,7 @@ import numpy as np, cv2, anthropic
 from PIL import Image, ImageDraw, ImageFont
 
 PJ = os.path.join(D, "pieces.json"); PIECES = json.load(open(PJ))
-MODEL = CFG["modeles"]["arbitrage"]
+MODEL = CFG["modeles"].get("fusion", CFG["modeles"]["arbitrage"])   # Sonnet : peu de planches, décision importante
 FAMILLE = {"veste": "vestes et pulls", "pull": "vestes et pulls", "haut": "hauts", "bas": "bas", "chaussures": "chaussures",
            "accessoire": "accessoires"}
 net = cv2.dnn.readNet(os.path.join(R, "models", "image_classification_mobilenetv2_2022apr.onnx"))
@@ -62,7 +62,9 @@ for fam in dict.fromkeys(FAMILLE.values()):
             if len(gs) < 2: continue
             main = max(gs, key=lambda g: g["ports"])
             for g in gs:
-                if g is main or set(g["seances"]) & set(main["seances"]): continue   # jamais deux fois dans la même tenue
+                if g is main: continue
+                if set(g["seances"]) & set(main["seances"]):                       # jamais deux fois dans la même tenue
+                    print("  pas de fusion", g["id"], "→", main["id"], ": portées dans la même tenue"); continue
                 main["seances"] = sorted(set(main["seances"]) | set(g["seances"])); main["ports"] = len(main["seances"])
                 main["nb_photos"] = main.get("nb_photos", 0) + g.get("nb_photos", 0)
                 main["premiere_fois"] = min(main["premiere_fois"], g["premiere_fois"]); main["derniere_fois"] = max(main["derniere_fois"], g["derniere_fois"])

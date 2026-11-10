@@ -6,7 +6,7 @@
   "recadrage_cote_long_px": 1280,
   "modeles": {
     "lecture": "claude-haiku-5-5",
-    "arbitrage": "claude-haiku-5-5",
+    "arbitrage": "claude-haiku-5-5", "fusion": "claude-sonnet-5-5",
     "image": "gpt-image-2.5-sunburst"
   },
   "image_qualite": "medium",
