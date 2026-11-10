@@ -68,6 +68,11 @@ def go(limit):
         files = [open(os.path.join(R, d), "rb") for d in p["decoupes"]]
         try:
             r = cli.images.edit(model=MODEL, image=files, prompt=txt, size=CFG["image_taille"], quality=q, n=1)
+        except Exception as e:
+            if "quota" in str(e) or "spend_limit" in str(e) or "credit" in str(e):   # plus de crédit : on s'arrête proprement,
+                print("\nArrêt : crédit ou plafond de dépense OpenAI atteint. Les images faites sont gardées ; relancer reprend ici.")
+                print("→ https://platform.openai.com/settings/organization/limits (plafond) ou /billing (crédit)\n"); return
+            print("échec", p["id"], ":", str(e)[:150]); continue
         finally:
             for f in files: f.close()
         path = os.path.join(OUTD, p["id"] + ".png")
