@@ -1,6 +1,7 @@
 """Étape 4 bis : dernier passage sur les pièces qui ont une photo produit. Les photos produit, nettes et de face,
 rendent les doublons faciles à voir (ex. le même blouson compté trois fois). Haiku voit des planches de 16 pièces
-(photo produit + vraie photo) et désigne les doublons ; les doublons sont fusionnés dans la pièce la plus portée.
+(photo produit + vraie photo) et désigne les doublons ; les doublons sont fusionnés dans la pièce la plus portée,
+et leurs photos produit deviennent des variantes : l'utilisateur choisit la meilleure (dans l'app, ou data/choix_photos.json).
 Usage : python3 algo/fusion_finale.py     (≈ 0,01 $)"""
 import os, sys, io, json, base64
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -66,6 +67,8 @@ for fam in dict.fromkeys(FAMILLE.values()):
                 main["nb_photos"] = main.get("nb_photos", 0) + g.get("nb_photos", 0)
                 main["premiere_fois"] = min(main["premiere_fois"], g["premiere_fois"]); main["derniere_fois"] = max(main["derniere_fois"], g["derniere_fois"])
                 g["statut"], g["fusionnee_dans"] = "fusionnee", main["id"]; n_fus += 1
+                # la photo produit du doublon n'est pas jetée : elle devient une variante, au choix de l'utilisateur
+                main["photos_alternatives"] = main.get("photos_alternatives", []) + [g["photo_produit"]] + g.get("photos_alternatives", [])
                 print("fusion", g["id"], g.get("type"), "→", main["id"], main.get("type"), flush=True)
 for p in PIECES: p.pop("_e", None)
 json.dump(PIECES, open(PJ, "w"), ensure_ascii=False, indent=1)

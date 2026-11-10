@@ -1,7 +1,8 @@
 """Étape 5 (locale, gratuite) : met le résultat au format de l'app (docs/modele-de-donnees.md).
 Sortie : out/app/dressing.json  {"items": [Item], "sessions": [Session], "wearEvents": [WearEvent]}
          out/app/images/        photos produit (pNNN.png) ; à défaut, la meilleure découpe (pNNN.jpg)
-Les clés et les types suivent les structures Codable de l'app (Item, Session, WearEvent) :
+Les clés et les types suivent les structures Codable de l'app (Item, Session, WearEvent), plus "alternativeImageNames"
+(variantes de la photo produit après fusion de doublons, ignoré par l'app tant qu'elle ne le lit pas) :
 décodable avec JSONDecoder et dateDecodingStrategy = .iso8601.
 Ces fichiers contiennent des données personnelles : ils restent dans out/ (exclu de GitHub)."""
 import os, sys, json, uuid, shutil
@@ -15,6 +16,8 @@ PIECES = json.load(open(os.path.join(D, "pieces.json")))
 SESS = {s["id"]: s for s in json.load(open(os.path.join(D, "sessions.json")))}
 OUT = os.path.join(O, "app"); IMG = os.path.join(OUT, "images")
 shutil.rmtree(OUT, ignore_errors=True); os.makedirs(IMG)
+# choix de l'utilisateur parmi les variantes d'une photo produit : {"p002": 1} = la 2e variante (0 = celle par défaut)
+CHOIX = json.load(open(os.path.join(D, "choix_photos.json"))) if os.path.exists(os.path.join(D, "choix_photos.json")) else {}
 
 NS = uuid.UUID("6f1c2e1a-5b7d-4c1e-9a43-7e0d3c2b9f10")       # identifiants stables d'un export à l'autre
 def uid(x): return str(uuid.uuid5(NS, x)).upper()
@@ -40,8 +43,13 @@ items, wears, used = [], [], set()
 for p in PIECES:
     if p.get("statut") in ("pas_a_moi", "fusionnee") or not est_mode(p): continue
     image = None
-    if p.get("photo_produit") and os.path.exists(os.path.join(R, p["photo_produit"])):
-        image = p["id"] + ".png"; shutil.copy(os.path.join(R, p["photo_produit"]), os.path.join(IMG, image))
+    photos = [f for f in [p.get("photo_produit")] + p.get("photos_alternatives", []) if f and os.path.exists(os.path.join(R, f))]
+    if p["id"] in CHOIX and CHOIX[p["id"]] < len(photos): photos.insert(0, photos.pop(CHOIX[p["id"]]))   # variante choisie
+    alternatives = []
+    if photos:
+        image = p["id"] + ".png"; shutil.copy(os.path.join(R, photos[0]), os.path.join(IMG, image))
+        for k, f in enumerate(photos[1:], 1):
+            alternatives.append(f"{p['id']}_v{k}.png"); shutil.copy(os.path.join(R, f), os.path.join(IMG, alternatives[-1]))
     elif p.get("decoupes"):
         image = p["id"] + ".jpg"; shutil.copy(os.path.join(R, p["decoupes"][0]), os.path.join(IMG, image))
     sources, vus = [], set()
@@ -59,7 +67,7 @@ for p in PIECES:
         "detectedTexts": [txt(p.get("logos_textes"))] if txt(p.get("logos_textes")) else [],
         "brand": {"name": marque, "model": None, "confidence": 0.6, "source": "photo"} if marque else None,
         "pricePaid": p.get("prix_paye"), "priceNew": p.get("prix_neuf"), "resaleValue": p.get("valeur_revente"),
-        "status": "active", "productImageName": image, "sourcePhotos": sources,
+        "status": "active", "productImageName": image, "alternativeImageNames": alternatives, "sourcePhotos": sources,
         "openToOffers": False, "openToSwap": False, "isFavorite": False, "seasons": [], "occasions": [], "tagIDs": []})
     for sid in p["seances"]:
         used.add(sid)
