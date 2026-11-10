@@ -72,6 +72,23 @@ for fam in dict.fromkeys(FAMILLE.values()):
                 # la photo produit du doublon n'est pas jetée : elle devient une variante, au choix de l'utilisateur
                 main["photos_alternatives"] = main.get("photos_alternatives", []) + [g["photo_produit"]] + g.get("photos_alternatives", [])
                 print("fusion", g["id"], g.get("type"), "→", main["id"], main.get("type"), flush=True)
+# fusions décidées par l'utilisateur : data/fusions_manuelles.json = [["p000", "p002", "p008"], …] (la plus portée garde la fiche)
+FM = os.path.join(D, "fusions_manuelles.json")
+par_id = {p["id"]: p for p in PIECES}
+for grp in (json.load(open(FM)) if os.path.exists(FM) else []):
+    gs = [par_id[i] for i in grp if i in par_id]
+    while any(g.get("statut") == "fusionnee" for g in gs):                 # suit les fusions déjà faites
+        gs = [par_id[g["fusionnee_dans"]] if g.get("statut") == "fusionnee" else g for g in gs]
+    gs = list({g["id"]: g for g in gs}.values())
+    if len(gs) < 2: continue
+    main = max(gs, key=lambda g: g["ports"])
+    for g in gs:
+        if g is main: continue
+        main["seances"] = sorted(set(main["seances"]) | set(g["seances"])); main["ports"] = len(main["seances"])
+        main["premiere_fois"] = min(main["premiere_fois"], g["premiere_fois"]); main["derniere_fois"] = max(main["derniere_fois"], g["derniere_fois"])
+        if g.get("photo_produit"): main["photos_alternatives"] = main.get("photos_alternatives", []) + [g["photo_produit"]] + g.get("photos_alternatives", [])
+        g["statut"], g["fusionnee_dans"] = "fusionnee", main["id"]; n_fus += 1
+        print("fusion manuelle", g["id"], "→", main["id"], flush=True)
 for p in PIECES: p.pop("_e", None)
 json.dump(PIECES, open(PJ, "w"), ensure_ascii=False, indent=1)
 print(avant, "pièces avec photo produit →", avant - n_fus, "après fusion des doublons")
