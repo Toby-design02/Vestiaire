@@ -76,8 +76,9 @@ def est_mode(p):
     t = (p.get("type") or "").lower()
     return any(k in t for k in ACCESSOIRES_MODE)
 
-# Pull ou haut porté noué sur les épaules / autour du cou : la photo produit le dessinerait noué, comme une écharpe.
-NOUE = re.compile(r"\bnou[ée]|drap[ée]|port[ée]e? sur les [ée]paules|autour (du cou|des [ée]paules)", re.I)
+# Pull ou haut porté noué sur les épaules, autour du cou ou à la taille : la photo produit le dessinerait noué, comme une écharpe.
+NOUE = re.compile(r"(nou[ée]|drap[ée]|port[ée]e?)[^.,;]{0,25}(épaules|epaules|\bcou\b|taille)|autour (du cou|des [ée]paules)", re.I)
 def porte_noue(p):
-    if (p.get("rayon") or "").lower() == "accessoire": return False
-    return bool(NOUE.search(" ".join(str(p.get(k) or "") for k in ("type", "coupe_col", "details_face"))))
+    if (p.get("rayon") or "").lower() not in ("pull", "veste", "haut"): return False
+    t = " ".join(str(p.get(k) or "") for k in ("type", "coupe_col", "details_face"))
+    return bool(NOUE.search(t)) and not re.search(r"ceintur", t, re.I)     # trench à ceinture nouée : pas concerné
