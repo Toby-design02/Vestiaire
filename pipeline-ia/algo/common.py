@@ -70,7 +70,7 @@ def guard(next_cost, what):
 # Accessoires de mode : seuls ceux-là entrent dans le dressing (pas les casques audio, serviettes, masques, déguisements…)
 ACCESSOIRES_MODE = ("casquette", "bonnet", "chapeau", "bob", "écharpe", "echarpe", "foulard", "snood", "tour de cou", "gants",
                     "ceinture", "lunettes", "sac", "sacoche", "cabas", "pochette", "cravate", "nœud", "noeud", "collier", "chaîne",
-                    "chaine", "bracelet", "montre", "bague", "boucle", "pendentif", "portefeuille")
+                    "chaine", "bracelet", "montre", "bague", "boucle", "pendentif", "portefeuille", "bandoulière")
 def est_mode(p):
     if (p.get("rayon") or "").lower() != "accessoire": return True
     t = (p.get("type") or "").lower()
