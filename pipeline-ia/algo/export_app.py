@@ -1,7 +1,7 @@
 """Étape 5 (locale, gratuite) : met le résultat au format de l'app (docs/modele-de-donnees.md).
 Sortie : out/app/dressing.json  {"items": [Item], "sessions": [Session], "wearEvents": [WearEvent]}
          out/app/images/        photos produit (pNNN.png) ; à défaut, la meilleure découpe (pNNN.jpg)
-Les clés et les types suivent les structures Codable de l'app (Item, Session, WearEvent), plus "alternativeImageNames"
+Les clés et les types suivent les structures Codable de l'app (Item, Session, WearEvent), plus "sourceImageNames" (vraies photos de la pièce, découpées) et "alternativeImageNames"
 (variantes de la photo produit après fusion de doublons, ignoré par l'app tant qu'elle ne le lit pas) :
 décodable avec JSONDecoder et dateDecodingStrategy = .iso8601.
 Ces fichiers contiennent des données personnelles : ils restent dans out/ (exclu de GitHub)."""
@@ -57,6 +57,10 @@ for p in PIECES:
         for v in SESS[sid]["vues"]:
             if v.get("id_photo") and v["id_photo"] not in vus and len(sources) < 6:
                 vus.add(v["id_photo"]); sources.append({"angle": ANGLE.get(v["angle"], "front"), "assetIdentifier": v["id_photo"]})
+    vraies = []                       # vraies photos de la pièce (découpes), pour lever un doute sur la photo produit
+    for k, f in enumerate(p.get("decoupes") or []):
+        if os.path.exists(os.path.join(R, f)):
+            vraies.append(f"{p['id']}_photo{k + 1}.jpg"); shutil.copy(os.path.join(R, f), os.path.join(IMG, vraies[-1]))
     marque = txt(p.get("marque"))
     items.append({
         "id": uid(p["id"]), "category": RAYON.get((p.get("rayon") or "").lower(), "accessories"),
@@ -67,7 +71,7 @@ for p in PIECES:
         "detectedTexts": [txt(p.get("logos_textes"))] if txt(p.get("logos_textes")) else [],
         "brand": {"name": marque, "model": None, "confidence": 0.6, "source": "photo"} if marque else None,
         "pricePaid": p.get("prix_paye"), "priceNew": p.get("prix_neuf"), "resaleValue": p.get("valeur_revente"),
-        "status": "active", "productImageName": image, "alternativeImageNames": alternatives, "sourcePhotos": sources,
+        "status": "active", "productImageName": image, "alternativeImageNames": alternatives, "sourceImageNames": vraies, "sourcePhotos": sources,
         "openToOffers": False, "openToSwap": False, "isFavorite": False, "seasons": [], "occasions": [], "tagIDs": []})
     for sid in p["seances"]:
         used.add(sid)
