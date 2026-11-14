@@ -39,7 +39,7 @@ def couleur_hex(path):
 
 def txt(v): return v if isinstance(v, str) and v.strip() and v.strip().lower() not in ("aucun", "none", "null", "-") else None
 
-items, wears, used = [], [], set()
+items, wears, used, pending = [], [], set(), []
 for p in PIECES:
     if p.get("statut") in ("pas_a_moi", "fusionnee") or not est_mode(p): continue
     image = None
@@ -62,7 +62,7 @@ for p in PIECES:
         if os.path.exists(os.path.join(R, f)):
             vraies.append(f"{p['id']}_photo{k + 1}.jpg"); shutil.copy(os.path.join(R, f), os.path.join(IMG, vraies[-1]))
     marque = txt(p.get("marque"))
-    items.append({
+    fiche = {
         "id": uid(p["id"]), "category": RAYON.get((p.get("rayon") or "").lower(), "accessories"),
         "type": txt(p.get("type")) or (p.get("rayon") or "Pièce").capitalize(),
         "colors": p.get("couleurs") or [], "colorHex": couleur_hex(p["decoupes"][0]) if p.get("decoupes") else "#888888",
@@ -72,7 +72,10 @@ for p in PIECES:
         "brand": {"name": marque, "model": None, "confidence": 0.6, "source": "photo"} if marque else None,
         "pricePaid": p.get("prix_paye"), "priceNew": p.get("prix_neuf"), "resaleValue": p.get("valeur_revente"),
         "status": "active", "productImageName": image, "alternativeImageNames": alternatives, "sourceImageNames": vraies, "sourcePhotos": sources,
-        "openToOffers": False, "openToSwap": False, "isFavorite": False, "seasons": [], "occasions": [], "tagIDs": []})
+        "openToOffers": False, "openToSwap": False, "isFavorite": False, "seasons": [], "occasions": [], "tagIDs": []}
+    if not photos:                    # sans photo produit : « à confirmer », hors du dressing (souvent un fragment de photo)
+        fiche["pendingReason"] = p.get("photos_insuffisantes") or "pas de photo produit"; pending.append(fiche); continue
+    items.append(fiche)
     for sid in p["seances"]:
         used.add(sid)
         wears.append({"id": uid(p["id"] + sid), "itemID": uid(p["id"]), "sessionID": uid(sid), "date": iso(SESS[sid]["debut"])})
@@ -81,7 +84,8 @@ sessions = [{"id": uid(sid), "date": iso(SESS[sid]["debut"]), "place": None, "co
              "photoCount": SESS[sid]["nb_photos"], "origin": "gallery", "photo": None, "samplePhotoName": None,
              "outfitID": None, "isSample": False} for sid in sorted(used)]
 
-json.dump({"items": items, "sessions": sessions, "wearEvents": wears},
+pending.sort(key=lambda f: -len(f["sourceImageNames"]))
+json.dump({"items": items, "sessions": sessions, "wearEvents": wears, "pendingItems": pending},
           open(os.path.join(OUT, "dressing.json"), "w"), ensure_ascii=False, indent=1)
-print(len(items), "pièces |", sum(1 for i in items if (i["productImageName"] or "").endswith(".png")), "avec photo produit |",
+print(len(items), "pièces |", sum(1 for i in items if (i["productImageName"] or "").endswith(".png")), "avec photo produit |", len(pending), "à confirmer |",
       len(sessions), "séances |", len(wears), "ports →", os.path.relpath(OUT, R))
