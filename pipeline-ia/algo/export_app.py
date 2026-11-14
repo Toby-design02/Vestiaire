@@ -63,7 +63,7 @@ for p in PIECES:
             vraies.append(f"{p['id']}_photo{k + 1}.jpg"); shutil.copy(os.path.join(R, f), os.path.join(IMG, vraies[-1]))
     marque = txt(p.get("marque"))
     fiche = {
-        "id": uid(p["id"]), "category": RAYON.get((p.get("rayon") or "").lower(), "accessories"),
+        "id": uid(p["id"]), "pipelineID": p["id"], "category": RAYON.get((p.get("rayon") or "").lower(), "accessories"),
         "type": txt(p.get("type")) or (p.get("rayon") or "Pièce").capitalize(),
         "colors": p.get("couleurs") or [], "colorHex": couleur_hex(p["decoupes"][0]) if p.get("decoupes") else "#888888",
         "pattern": txt(p.get("motif")), "material": txt(p.get("matiere")), "fit": None, "collar": txt(p.get("coupe_col")),
